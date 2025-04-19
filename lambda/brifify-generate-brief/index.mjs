@@ -1,23 +1,93 @@
 "use strict";
 import OpenAI from "openai";
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand
+} from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const dynamo = new DynamoDBClient({});
+const TABLE_NAME = process.env.DYNAMO_TABLE;
+const FREE_BRIEF_LIMIT = 3;
+const RECORD_TYPE = "USER_PROFILE";
+
+const headers = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "OPTIONS,POST",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+async function getUserData(userId) {
+  const userData = await dynamo.send(
+    new GetItemCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        userId: { S: userId },
+        recordType: { S: RECORD_TYPE }
+      },
+    })
+  );
+
+  if (!userData.Item) {
+    // If user doesn't exist, create a new anonymous user profile
+    const newUser = {
+      userId,
+      recordType: RECORD_TYPE,
+      isAnonymous: true, // All users are anonymous by default until they authenticate
+      generationCount: 0,
+      tokens: 0,
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
+    };
+
+    await dynamo.send(
+      new PutItemCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          userId: { S: userId },
+          recordType: { S: RECORD_TYPE },
+          isAnonymous: { BOOL: true },
+          generationCount: { N: "0" },
+          tokens: { N: "0" },
+          createdAt: { S: newUser.createdAt },
+          lastUpdated: { S: newUser.lastUpdated }
+        },
+      })
+    );
+    return newUser;
+  }
+
+  return unmarshall(userData.Item);
+}
 
 export const handler = async (event) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "OPTIONS,POST",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-
   try {
-    // const body = event.body;
-    // const { questionnaire } = body;
-    const questionnaire = event?.questionnaire;
+    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    const { questionnaire, userId } = body;
 
-    if (!Array.isArray(questionnaire) || questionnaire.length === 0) {
+    if (!Array.isArray(questionnaire) || questionnaire.length === 0 || !userId) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Invalid or missing questionnaire array" }),
+        body: JSON.stringify({ error: "Invalid or missing parameters" }),
+      };
+    }
+
+    // Get user data and check limits
+    const userData = await getUserData(userId);
+    const { generationCount, tokens } = userData;
+    const remainingBriefs = Math.max(0, FREE_BRIEF_LIMIT - generationCount);
+
+    if (generationCount >= FREE_BRIEF_LIMIT && tokens <= 0) {
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ 
+          error: "Brief generation limit reached",
+          remainingBriefs: 0
+        }),
       };
     }
 
@@ -25,11 +95,9 @@ export const handler = async (event) => {
       .map(item => `Q: ${item.question}\nA: ${item.answer}`)
       .join("\n\n");
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo-0125",
-      tool_choice: "auto", // let OpenAI auto-pick the function
+      tool_choice: "auto",
       tools: [
         {
           type: "function",
@@ -88,7 +156,6 @@ export const handler = async (event) => {
         },
       ],
     });
-    
 
     const functionCall = response.choices[0].message.tool_calls?.[0];
 
@@ -105,14 +172,17 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ brief }),
+      body: JSON.stringify({ 
+        brief,
+        remainingBriefs
+      }),
     };
   } catch (error) {
-    console.error("Error generating structured brief:", error);
+    console.error("Error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Internal Server Error" }),
+      body: JSON.stringify({ error: "Internal Server Error", details: error.message }),
     };
   }
 };

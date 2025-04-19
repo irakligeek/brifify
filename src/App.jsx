@@ -2,7 +2,7 @@ import "./App.css";
 import NavbarMain from "./components/layout/NavbarMain";
 import Footer from "./components/layout/Footer";
 import WizardForm from "./components/WizardForm";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@/components/ui/sonner";
 import { BriefProvider } from "./context/BriefContext";
 
 function App() {

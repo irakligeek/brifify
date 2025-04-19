@@ -1,96 +1,212 @@
 "use strict";
-import OpenAI from 'openai';
+import OpenAI from "openai";
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 
-export const handler = async (event) => {
-  const qLimit = 3;
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "OPTIONS,POST",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const dynamo = new DynamoDBClient({});
+const TABLE_NAME = process.env.DYNAMO_TABLE;
+const FREE_BRIEF_LIMIT = 3;
+const RECORD_TYPE = "USER_PROFILE"; // Define record type for user profiles
+
+const headers = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "OPTIONS,POST",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const QUESTION_LIMIT = 10;
+const ASSISTANT_NAME = "Technical Specification Assistant";
+
+const INSTRUCTIONS = `
+You are a technical specification assistant for non-technical people. 
+Based on the user's project description, ask relevant follow-up questions 
+that a developer would need to fully understand the project requirements. 
+Ask one question at a time and focus on critical aspects. 
+Do not include numbers in your questions.
+Stop asking when you've collected enough information to start building the project. 
+Respond with 'done' when you have no more questions.
+`;
+
+async function createAssistant() {
+  const assistant = await openai.beta.assistants.create({
+    name: ASSISTANT_NAME,
+    instructions: `${INSTRUCTIONS}\nLimit to ${QUESTION_LIMIT} essential questions.`,
+    model: "gpt-3.5-turbo-0125",
+  });
+  return assistant.id;
+}
+
+async function waitForRunCompletion(threadId, runId) {
+  let run;
+  do {
+    await new Promise((res) => setTimeout(res, 1000));
+    run = await openai.beta.threads.runs.retrieve(threadId, runId);
+  } while (["in_progress", "queued"].includes(run.status));
+  return run;
+}
+
+async function getLastAssistantMessage(threadId) {
+  const messages = await openai.beta.threads.messages.list(threadId);
+  return (
+    messages.data
+      .filter((msg) => msg.role === "assistant")
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+      ?.content[0]?.text?.value || ""
+  );
+}
+
+async function getOrCreateUser(userId) {
+  // Try to get existing user
+  const userData = await dynamo.send(
+    new GetItemCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        userId: { S: userId },
+        recordType: { S: RECORD_TYPE }
+      },
+    })
+  );
+
+  if (userData.Item) {
+    return {
+      ...unmarshall(userData.Item),
+      isNew: false
+    };
+  }
+
+  // Create new user if doesn't exist
+  // Consider all users anonymous unless they have explicit authentication
+  const isAnonymous = true; // All users are anonymous by default until they authenticate
+  const newUser = {
+    userId,
+    recordType: RECORD_TYPE,
+    isAnonymous,
+    generationCount: 0,
+    tokens: 0,
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
   };
 
+  await dynamo.send(
+    new PutItemCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        userId: { S: userId },
+        recordType: { S: RECORD_TYPE },
+        isAnonymous: { BOOL: isAnonymous },
+        generationCount: { N: "0" },
+        tokens: { N: "0" },
+        createdAt: { S: newUser.createdAt },
+        lastUpdated: { S: newUser.lastUpdated }
+      },
+    })
+  );
+
+  return {
+    ...newUser,
+    isNew: true
+  };
+}
+
+export const handler = async (event) => {
   try {
-    const body = event.body;
-    const { messages, userThreadId } = body;
-    
-    // Validate messages array
-    if (!Array.isArray(messages) || messages.length === 0) {
+    const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+    const { messages, userThreadId, userId } = body;
+
+    if (!Array.isArray(messages) || messages.length === 0 || !userId) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Invalid or missing message history" }),
+        body: JSON.stringify({ error: "Missing required parameters" }),
       };
     }
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Get or create user
+    const user = await getOrCreateUser(userId);
+    const remainingBriefs = FREE_BRIEF_LIMIT - user.generationCount;
 
-    // Create or retrieve assistant
-    const assistant = await openai.beta.assistants.create({
-      name: "Technical Specification Assistant",
-      instructions: `You are a technical specification assistant for non-technical people. 
-      Based on the user's project description, 
-      ask relevant follow-up questions that a developer would need to fully understand the project requirements. 
-      Your goal is to gather enough information without unnecessary details. 
-      Ask one question at a time and focus on critical aspects that will impact the development. 
-      Do not include question numbers in your responses, only the questions themselves.
-      Limit the total number of questions to ${qLimit}, stopping once you have gathered the most essential details for the project. 
-      When no more questions are needed, respond with the string 'done'.`,
-      // model: "gpt-4-0125-preview",
-      model:  "gpt-3.5-turbo-0125",
-    });
+    // Check if user has reached the limit
+    if (user.generationCount >= FREE_BRIEF_LIMIT && user.tokens <= 0) {
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ 
+          error: "Brief limit reached",
+          remainingBriefs: 0
+        }),
+      };
+    }
 
-    let thread;
+    const assistantId = process.env.ASSISTANT_ID || (await createAssistant());
+
     let threadId = userThreadId;
-
-    // Create new thread if it's the first message, otherwise use existing thread
     if (!threadId) {
-      thread = await openai.beta.threads.create();
+      const thread = await openai.beta.threads.create();
       threadId = thread.id;
     }
 
-    // Add the new message to the thread
     const lastMessage = messages[messages.length - 1];
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
-      content: lastMessage.content
+      content: lastMessage.content,
     });
 
-    // Run the assistant
     const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: assistant.id,
+      assistant_id: assistantId,
     });
+    await waitForRunCompletion(threadId, run.id);
+    const reply = await getLastAssistantMessage(threadId);
 
-    // Wait for the run to complete
-    let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-    while (runStatus.status === 'in_progress' || runStatus.status === 'queued') {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+    if (reply.toLowerCase().includes("done")) {
+      // Update generation count only when brief is complete
+      const newGenCount = user.generationCount + 1;
+      await dynamo.send(
+        new UpdateItemCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            userId: { S: userId },
+            recordType: { S: RECORD_TYPE }
+          },
+          UpdateExpression: "SET generationCount = :gen, lastUpdated = :updated",
+          ExpressionAttributeValues: {
+            ":gen": { N: newGenCount.toString() },
+            ":updated": { S: new Date().toISOString() }
+          },
+        })
+      );
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          message: reply, 
+          threadId,
+          remainingBriefs: FREE_BRIEF_LIMIT - newGenCount
+        }),
+      };
     }
-
-    // Get the assistant's response
-    const messages_list = await openai.beta.threads.messages.list(threadId);
-    const lastAssistantMessage = messages_list.data
-      .filter(msg => msg.role === 'assistant')
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-
-    const response = {
-      message: lastAssistantMessage.content[0].text.value,
-      threadId: threadId
-    };
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(response)
+      body: JSON.stringify({ 
+        message: reply, 
+        threadId,
+        remainingBriefs
+      }),
     };
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error("Error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Internal Server Error" }),
+      body: JSON.stringify({ error: "Internal Server Error", details: error.message }),
     };
   }
 };

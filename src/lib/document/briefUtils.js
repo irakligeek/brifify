@@ -1,42 +1,47 @@
-import { jsPDF } from 'jspdf';
-import { Document, Paragraph, HeadingLevel } from 'docx';
+import { jsPDF } from "jspdf";
+import { Document, Paragraph, HeadingLevel } from "docx";
 import { toast } from "sonner";
+import axios from "axios";
 
 const formatFieldName = (key) => {
   return key
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 };
 
 export const downloadBriefAsPDF = (briefData) => {
   const doc = new jsPDF();
   let yPos = 20;
-  
+
   // Title
   doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
+  doc.setFont(undefined, "bold");
   doc.text(briefData.project_title, 20, yPos);
   yPos += 20;
 
   // Iterate through all fields
   Object.entries(briefData).forEach(([key, value]) => {
     // Skip project_title as it's already handled
-    if (key === 'project_title' || !value || (Array.isArray(value) && value.length === 0)) {
+    if (
+      key === "project_title" ||
+      !value ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return;
     }
 
     doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text(formatFieldName(key) + ':', 20, yPos);
+    doc.setFont(undefined, "bold");
+    doc.text(formatFieldName(key) + ":", 20, yPos);
     yPos += 10;
 
     doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
+    doc.setFont(undefined, "normal");
 
     if (Array.isArray(value)) {
-      value.forEach(item => {
-        doc.text('•', 20, yPos);
+      value.forEach((item) => {
+        doc.text("•", 20, yPos);
         doc.text(item, 25, yPos);
         yPos += 7;
       });
@@ -50,8 +55,8 @@ export const downloadBriefAsPDF = (briefData) => {
     yPos += 7; // Add space between sections
   });
 
-  doc.save(`${briefData.project_title.replace(/\s+/g, '_')}_brief.pdf`);
-  toast.success('PDF downloaded successfully');
+  doc.save(`${briefData.project_title.replace(/\s+/g, "_")}_brief.pdf`);
+  toast.success("PDF downloaded successfully");
 };
 
 export const downloadBriefAsDOCX = async (briefData) => {
@@ -60,15 +65,19 @@ export const downloadBriefAsDOCX = async (briefData) => {
       text: briefData.project_title,
       heading: HeadingLevel.HEADING_1,
       bold: true,
-      size: 32
+      size: 32,
     }),
-    new Paragraph({}) // Add spacing
+    new Paragraph({}), // Add spacing
   ];
 
   // Iterate through all fields
   Object.entries(briefData).forEach(([key, value]) => {
     // Skip project_title as it's already handled
-    if (key === 'project_title' || !value || (Array.isArray(value) && value.length === 0)) {
+    if (
+      key === "project_title" ||
+      !value ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return;
     }
 
@@ -77,25 +86,26 @@ export const downloadBriefAsDOCX = async (briefData) => {
         text: formatFieldName(key),
         heading: HeadingLevel.HEADING_2,
         bold: true,
-        size: 28
+        size: 28,
       })
     );
 
     if (Array.isArray(value)) {
       children.push(
-        ...value.map(item => 
-          new Paragraph({
-            text: item,
-            bullet: {
-              level: 0
-            }
-          })
+        ...value.map(
+          (item) =>
+            new Paragraph({
+              text: item,
+              bullet: {
+                level: 0,
+              },
+            })
         )
       );
     } else {
       children.push(
         new Paragraph({
-          text: value.toString()
+          text: value.toString(),
         })
       );
     }
@@ -104,10 +114,12 @@ export const downloadBriefAsDOCX = async (briefData) => {
   });
 
   return new Document({
-    sections: [{
-      properties: {},
-      children
-    }]
+    sections: [
+      {
+        properties: {},
+        children,
+      },
+    ],
   });
 };
 
@@ -118,19 +130,23 @@ export const copyBriefToClipboard = async (briefData) => {
     // Iterate through all fields
     Object.entries(briefData).forEach(([key, value]) => {
       // Skip project_title as it's already handled
-      if (key === 'project_title' || !value || (Array.isArray(value) && value.length === 0)) {
+      if (
+        key === "project_title" ||
+        !value ||
+        (Array.isArray(value) && value.length === 0)
+      ) {
         return;
       }
 
       formattedText += `${formatFieldName(key)}:\r\n`;
-      
+
       if (Array.isArray(value)) {
-        formattedText += value.map(item => `• ${item}`).join('\r\n');
+        formattedText += value.map((item) => `• ${item}`).join("\r\n");
       } else {
         formattedText += value.toString();
       }
 
-      formattedText += '\r\n\r\n';
+      formattedText += "\r\n\r\n";
     });
 
     await navigator.clipboard.writeText(formattedText);
@@ -139,6 +155,35 @@ export const copyBriefToClipboard = async (briefData) => {
   } catch (err) {
     toast.error("Could not copy to clipboard. Please try again.");
     console.error("Copy failed:", err);
+    return false;
+  }
+};
+
+export const shareBrief = async ({ briefData }) => {
+  try {
+    // Get anonymous user data from localStorage
+    const anonymousUser = JSON.parse(localStorage.getItem('brifify_anonymous_user') || '{}');
+    
+    const response = await axios.post(
+      "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/share-brief",
+      {
+        briefData,
+        userId: anonymousUser?.id
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const url = JSON.parse(response.data.body)?.url;
+    await navigator.clipboard.writeText(url);
+    toast.success("Share URL copied to clipboard");
+    return true;
+  } catch (err) {
+    console.error("Share failed:", err);
+    toast.error("Failed to generate share URL");
     return false;
   }
 };

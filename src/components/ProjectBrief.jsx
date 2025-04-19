@@ -34,6 +34,7 @@ import {
   Copy,
   Check,
   FileIcon,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Packer } from "docx";
@@ -41,11 +42,12 @@ import {
   downloadBriefAsPDF,
   downloadBriefAsDOCX,
   copyBriefToClipboard,
+  shareBrief,
 } from "@/lib/document/briefUtils";
 import { useBrief } from "@/context/BriefContext";
 
 export default function ProjectBrief({ initialData }) {
-  const { updateBrief, generateNewBrief } = useBrief();
+  const { updateBrief, generateNewBrief, anonymousUser } = useBrief();
   const [briefData, setBriefData] = useState({
     ...initialData,
     technical_requirements: initialData?.technical_requirements || [],
@@ -58,6 +60,7 @@ export default function ProjectBrief({ initialData }) {
   });
   const [open, setOpen] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const briefRef = useRef(null);
 
   const handleEditChange = (field, value) => {
@@ -107,13 +110,28 @@ export default function ProjectBrief({ initialData }) {
     }
   };
 
+  const shareUrl = async () => {
+    try {
+      setSharing(true);
+      await shareBrief({briefData});
+    } catch (err) {
+      console.error('Share failed:', err);
+    } finally {
+      setTimeout(() => setSharing(false), 2000);
+    }
+  };
+
+  const handleGenerateNewBrief = () => {
+    generateNewBrief();
+  };
+
   if (!briefData) {
     return <div className="text-left p-4">No project brief data provided.</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
-      <h1 className="font-heading text-4xl pb-4 text-zinc-700">
+      <h1 className="font-heading text-3xl pb-4 text-zinc-700 font-semibold">
         Your Technical Brief Is Ready
       </h1>
       <Card className="shadow-l pt-0" ref={briefRef}>
@@ -174,7 +192,6 @@ export default function ProjectBrief({ initialData }) {
             >
               {copying ? (
                 <>
-                  <Check className="h-4 w-4" />
                   Copied
                 </>
               ) : (
@@ -185,9 +202,26 @@ export default function ProjectBrief({ initialData }) {
               )}
             </Button>
 
+            <Button
+              variant="outline"
+              onClick={shareUrl}
+              className="flex items-center gap-2 rounded-sm w-auto"
+            >
+              {sharing ? (
+                <>
+                  Sharing ...
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4" />
+                  Share
+                </>
+              )}
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 w-10 sm:w-auto justify-center rounded-sm w-auto" >
+                <Button variant="outline" className="flex items-center gap-2 justify-center rounded-sm sm:w-auto">
                   <FileDown className="h-4 w-4" />
                   Download
                 </Button>
@@ -207,7 +241,7 @@ export default function ProjectBrief({ initialData }) {
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 rounded-sm sm:w-auto justify-center w-16 w-auto">
+              <Button className="flex items-center gap-2 rounded-sm sm:w-auto justify-center">
                 <Edit className="h-4 w-4" />
                 Edit Brief
               </Button>
@@ -265,16 +299,6 @@ export default function ProjectBrief({ initialData }) {
           </Dialog>
         </CardFooter>
       </Card>
-
-      <div className="flex justify-center pt-4">
-        <Button
-          onClick={generateNewBrief}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-sm"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Generate New Brief
-        </Button>
-      </div>
     </div>
   );
 }
