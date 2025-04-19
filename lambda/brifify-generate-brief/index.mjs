@@ -80,7 +80,7 @@ export const handler = async (event) => {
     const { generationCount, tokens } = userData;
     const remainingBriefs = Math.max(0, FREE_BRIEF_LIMIT - generationCount);
 
-    if (generationCount >= FREE_BRIEF_LIMIT && tokens <= 0) {
+    if (generationCount > FREE_BRIEF_LIMIT && tokens <= 0) {
       return {
         statusCode: 429,
         headers,

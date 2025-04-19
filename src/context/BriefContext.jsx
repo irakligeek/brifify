@@ -52,34 +52,30 @@ const BriefProvider = ({ children }) => {
 
   const generateDeviceSignature = (client) => {
     const screenInfo = getScreenInfo();
+    // Focus on device-specific characteristics that are more likely to be consistent across browsers
     const components = [
-      client.getFingerprint(),
       client.getOS(),
       client.getOSVersion(),
-      client.getBrowser(),
-      client.getBrowserVersion(),
-      client.getEngine(),
       client.getDevice(),
       client.getCPU(),
       client.getTimeZone(),
-      client.getLanguage(),
       `${screenInfo.width}x${screenInfo.height}`,
       screenInfo.colorDepth,
       navigator.hardwareConcurrency,
-      navigator.deviceMemory,
-      navigator.platform,
-      navigator.vendor,
-      navigator.language,
-      navigator.connection?.effectiveType
+      navigator.platform
     ].filter(Boolean);
 
     return components.join('|');
   };
 
-  const generateCompositeId = (fingerprint, ipAddress) => {
-    const fingerprintPart = fingerprint.toString().substring(0, 8);
-    const ipPart = ipAddress ? ipAddress.split('.').join('') : 'noip';
-    return `${fingerprintPart}_${ipPart}`;
+  const generateCompositeId = (fingerprint) => {
+    // Create a more stable ID using device characteristics
+    const client = new ClientJS();
+    const os = client.getOS() || 'unknown';
+    const cores = navigator.hardwareConcurrency || '0';
+    const timezone = client.getTimeZone() || 'UTC';
+    const devicePart = `${os}_${cores}_${timezone}`.replace(/\s+/g, '');
+    return `${devicePart}_${fingerprint}`;
   };
 
   const initializeAnonymousUser = async () => {
@@ -88,13 +84,12 @@ const BriefProvider = ({ children }) => {
 
     if (savedUser) {
       try {
-        const parsedUser = JSON.parse(savedUser);
         const client = new ClientJS();
         const currentDeviceSignature = generateDeviceSignature(client);
         const ipAddress = await getIpAddress();
         const screenInfo = getScreenInfo();
         const fingerprint = client.getFingerprint();
-        const compositeId = generateCompositeId(fingerprint, ipAddress);
+        const compositeId = generateCompositeId(fingerprint);
 
         const updatedUser = {
           id: compositeId,
@@ -139,7 +134,7 @@ const BriefProvider = ({ children }) => {
     const ipAddress = await getIpAddress();
     const screenInfo = getScreenInfo();
     const fingerprint = client.getFingerprint();
-    const compositeId = generateCompositeId(fingerprint, ipAddress);
+    const compositeId = generateCompositeId(fingerprint);
 
     const user = {
       id: compositeId,

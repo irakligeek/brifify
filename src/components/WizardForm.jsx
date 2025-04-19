@@ -8,7 +8,13 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export default function WizardForm() {
-  const { brief, updateBrief, anonymousUser, isInitializing, fetchRemainingBriefs } = useBrief();
+  const {
+    brief,
+    updateBrief,
+    anonymousUser,
+    isInitializing,
+    fetchRemainingBriefs,
+  } = useBrief();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState(null);
@@ -19,8 +25,8 @@ export default function WizardForm() {
       question: "What is your project about?",
       placeholder: "Describe your project in a few words",
     },
-  ]); 
-  
+  ]);
+
   const [formData, setFormData] = useState({});
 
   const handleInputChange = (e) => {
@@ -50,6 +56,8 @@ export default function WizardForm() {
 
     setIsLoading(true);
 
+    // console.log("anonymousUser?.id:", anonymousUser?.id);
+
     try {
       const newUserMessage = { role: "user", content: userAnswer };
       const currentQuestionMessage = {
@@ -68,7 +76,7 @@ export default function WizardForm() {
         {
           messages: updatedHistory,
           userThreadId: threadId,
-          userId: anonymousUser?.id
+          userId: anonymousUser?.id,
         },
         {
           headers: {
@@ -78,12 +86,14 @@ export default function WizardForm() {
       );
 
       const responseBody = JSON.parse(response.data.body);
-      
+
       // First check if there's an error in the response
       if (responseBody.error) {
         if (responseBody.error === "Brief limit reached") {
           fetchRemainingBriefs();
-          toast.error("You've reached the free brief limit. Get more tokens to continue!");
+          toast.error(
+            "You've reached the free brief limit. Get more tokens to continue!"
+          );
         } else {
           toast.error(responseBody.error);
         }
@@ -114,7 +124,7 @@ export default function WizardForm() {
                 }
                 return acc;
               }, []),
-              userId: anonymousUser?.id
+              userId: anonymousUser?.id,
             },
             {
               headers: {
@@ -124,7 +134,7 @@ export default function WizardForm() {
           );
 
           const briefResponseBody = JSON.parse(briefResponse.data.body);
-          
+
           if (briefResponseBody.error) {
             toast.error(briefResponseBody.error);
             setIsLoading(false);
@@ -132,7 +142,7 @@ export default function WizardForm() {
           }
 
           const { brief: generatedBrief } = briefResponseBody;
-          
+
           if (generatedBrief) {
             updateBrief(generatedBrief);
             // Fetch updated remaining briefs count
@@ -141,7 +151,9 @@ export default function WizardForm() {
         } catch (error) {
           console.error("Error generating brief:", error);
           if (error.response?.status === 429) {
-            toast.error("You've reached the free brief limit. Get more tokens to continue!");
+            toast.error(
+              "You've reached the free brief limit. Get more tokens to continue!"
+            );
           } else {
             toast.error("Failed to generate brief. Please try again.");
           }
@@ -164,7 +176,9 @@ export default function WizardForm() {
     } catch (error) {
       console.error("Error fetching next question:", error);
       if (error.response?.status === 429) {
-        toast.error("You've reached the free brief limit. Get more tokens to continue!");
+        toast.error(
+          "You've reached the free brief limit. Get more tokens to continue!"
+        );
       } else {
         toast.error("Something went wrong. Please try again.");
       }

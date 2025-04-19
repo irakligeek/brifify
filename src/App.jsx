@@ -11,16 +11,10 @@ function App() {
       <div className="min-h-screen flex flex-col">
         {/* Header */}
         <header className="bg-white shadow-md">
-          <div className="max-w-screen-lg mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="text-xl font-bold text-gray-800">
-              <a
-                href="/"
-                className="!text-gray-900 hover:!text-gray-800 !font-bold tracking-wide"
-              >
-                Brifify
-              </a>
+          <div className="max-w-screen-xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <NavbarMain />
             </div>
-            <NavbarMain />
           </div>
         </header>
 

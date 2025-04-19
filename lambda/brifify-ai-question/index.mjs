@@ -132,7 +132,7 @@ export const handler = async (event) => {
     const remainingBriefs = FREE_BRIEF_LIMIT - user.generationCount;
 
     // Check if user has reached the limit
-    if (user.generationCount >= FREE_BRIEF_LIMIT && user.tokens <= 0) {
+    if (user.generationCount > FREE_BRIEF_LIMIT && user.tokens <= 0) {
       return {
         statusCode: 429,
         headers,

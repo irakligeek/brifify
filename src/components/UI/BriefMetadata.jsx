@@ -5,7 +5,7 @@ import { useBrief } from "@/context/BriefContext";
 
 export default function BriefMetadata() {
   const { remainingBriefs, generateNewBrief } = useBrief();
-  
+
   const handleGetMoreTokens = () => {
     // TODO: Implement token purchase functionality
     console.log("Get More Tokens button clicked... ");
@@ -13,7 +13,7 @@ export default function BriefMetadata() {
 
   return (
     <Card className="p-4 mb-6 bg-white">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:!flex-row gap-4 justify-start items-start sm:!items-center sm:!justify-between">
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">
             {remainingBriefs === null ? (
@@ -30,26 +30,27 @@ export default function BriefMetadata() {
               </>
             )}
           </span>
+        </div>
 
+        <div className="flex items-start gap-2 flex-col sm:!flex-row sm:items-center">
           <Button
             onClick={generateNewBrief}
             disabled={remainingBriefs === 0}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+            className="flex items-center gap-2 "
             variant="outline"
           >
             <RefreshCw className="h-4 w-4" />
             Generate New Brief
           </Button>
+          <Button
+            onClick={handleGetMoreTokens}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            <Coins className="h-4 w-4" />
+            Get More Tokens
+          </Button>
         </div>
-
-        <Button
-          onClick={handleGetMoreTokens}
-          className="flex items-center gap-2"
-          variant="outline"
-        >
-          <Coins className="h-4 w-4" />
-          Get More Tokens
-        </Button>
       </div>
     </Card>
   );

@@ -131,8 +131,8 @@ export default function ProjectBrief({ initialData }) {
 
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
-      <h1 className="font-heading text-3xl pb-4 text-zinc-700 font-semibold">
-        Your Technical Brief Is Ready
+      <h1 className="text-3xl md:text-4xl pb-8 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent font-heading tracking-tight">
+        ✨ Your Technical Brief Is Ready
       </h1>
       <Card className="shadow-l pt-0" ref={briefRef}>
         <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 border-b text-left pt-6">
