@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Coins, Loader2, RefreshCw } from "lucide-react";
+import { Coins, Loader2, FileIcon } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 
 export default function BriefMetadata() {
@@ -12,44 +12,49 @@ export default function BriefMetadata() {
   };
 
   return (
-    <Card className="p-4 mb-6 bg-white">
-      <div className="flex flex-col sm:!flex-row gap-4 justify-start items-start sm:!items-center sm:!justify-between">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            {remainingBriefs === null ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading...
-              </div>
-            ) : (
-              <>
-                Remaining Briefs:{" "}
-                <span className="font-semibold text-blue-600">
-                  {remainingBriefs}
-                </span>
-              </>
-            )}
-          </span>
-        </div>
-
-        <div className="flex items-start gap-2 flex-col sm:!flex-row sm:items-center">
-          <Button
-            onClick={generateNewBrief}
-            disabled={remainingBriefs === 0}
-            className="flex items-center gap-2 "
-            variant="outline"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Generate New Brief
-          </Button>
+    <Card className="p-4 mb-6 bg-white rounded-none border-none shadow-none">
+      <div className="flex flex-col gap-6">
+        {/* Tokens Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">
+              {remainingBriefs === null ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </div>
+              ) : (
+                <>
+                  Remaining Briefs:{" "}
+                  <span className="font-semibold text-blue-600">
+                    {remainingBriefs}
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
           <Button
             onClick={handleGetMoreTokens}
-            className="flex items-center gap-2"
-            variant="outline"
+            className="w-fit flex items-left justify-start gap-2 bg-gradient-to-r from-pink-400 to-purple-700 hover:from-pink-500 hover:to-purple-800 text-white border-none"
           >
             <Coins className="h-4 w-4" />
             Get More Tokens
           </Button>
+          <div className="pt-4 border-b border-gray-200" />
+        </div>
+
+        {/* My Briefs Section */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-700 text-left">My Briefs</h3>
+          <button
+            onClick={generateNewBrief}
+            disabled={remainingBriefs === 0}
+            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            <FileIcon className="h-4 w-4" />
+            <span className="underline">Start New</span>
+          </button>
+          {/* Brief list will be added here later */}
         </div>
       </div>
     </Card>

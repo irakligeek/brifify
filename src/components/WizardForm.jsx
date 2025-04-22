@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import Questionnaire from "./Questionnaire";
 import ProjectBrief from "./ProjectBrief";
-import BriefMetadata from "./UI/BriefMetadata";
 import { useBrief } from "@/context/BriefContext";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -200,14 +199,11 @@ export default function WizardForm() {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto w-full px-4">
-        <BriefMetadata />
-      </div>
       {brief ? (
         <ProjectBrief initialData={brief} />
       ) : (
-        <div className="flex items-center justify-center p-4">
-          <div className="w-full max-w-3xl">
+        <div className="flex items-center justify-center">
+          <div className="w-full">
             <Questionnaire
               questions={questions}
               currentStep={currentStep}
