@@ -3,6 +3,7 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 import { useState } from "react";
 import Login from "../UI/Login";
+import Logo from "../UI/Logo";
 
 // Create a reusable menu items component
 const MenuItems = ({ className = "" }) => {
@@ -36,14 +37,8 @@ export default function NavbarMain() {
 
   return (
     <nav className="!flex !items-center !w-full !relative">
-      {/* Logo - Left aligned */}
       <div className="!flex-none text-xl font-bold text-gray-800">
-        <a
-          href="/"
-          className="!text-gray-900 hover:!text-gray-800 !font-bold tracking-wide"
-        >
-          Brifify
-        </a>
+        <Logo />
       </div>
 
       {/* Mobile menu button - visible from xs to lg breakpoint */}
