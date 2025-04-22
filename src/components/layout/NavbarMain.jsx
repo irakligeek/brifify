@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 import { useState } from "react";
+import Login from "../UI/Login";
 
 // Create a reusable menu items component
 const MenuItems = ({ className = "" }) => {
@@ -66,12 +67,7 @@ export default function NavbarMain() {
 
       {/* Right-aligned items - only visible at lg (1024px) and above */}
       <div className="!hidden lg:!flex !flex-row !items-center !ml-auto !space-x-4">
-        <a
-          href="#"
-          className="!text-gray-500 hover:!text-gray-700 !font-semibold"
-        >
-          Login
-        </a>
+        <Login />
         <Button
           onClick={generateNewBrief}
           className="!w-auto !flex !items-center !gap-2 !bg-blue-600 hover:!bg-blue-700 !text-white !font-bold !rounded-sm !px-4 !py-2 !transition-colors !duration-200"
@@ -99,12 +95,7 @@ export default function NavbarMain() {
             Create Brief
             <ArrowRight className="h-4 w-4" />
           </Button>
-          <a
-            href="#"
-            className="!text-gray-500 hover:!text-gray-700 !font-semibold"
-          >
-            Login
-          </a>
+          <Login />
         </div>
       </div>
     </nav>
