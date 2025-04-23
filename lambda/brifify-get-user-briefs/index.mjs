@@ -1,14 +1,13 @@
 "use strict";
 import {
   DynamoDBClient,
-  GetItemCommand
+  QueryCommand
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 const dynamo = new DynamoDBClient({});
 const TABLE_NAME = process.env.DYNAMO_TABLE;
-const FREE_INITIAL_TOKENS = 3; // Changed from FREE_BRIEF_LIMIT to FREE_INITIAL_TOKENS
-const RECORD_TYPE = "USER_PROFILE";
+const RECORD_TYPE = "BRIEF";
 
 const headers = {
   "Access-Control-Allow-Origin": "*",
@@ -18,9 +17,9 @@ const headers = {
 
 export const handler = async (event) => {
   try {
-    const body = event.body;
+    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     const { userId } = body;
-    
+
     if (!userId) {
       return {
         statusCode: 400,
@@ -29,37 +28,39 @@ export const handler = async (event) => {
       };
     }
 
-    // Try to get existing user
-    const userData = await dynamo.send(
-      new GetItemCommand({
+    // Query for user briefs
+    const briefsData = await dynamo.send(
+      new QueryCommand({
         TableName: TABLE_NAME,
-        Key: {
-          userId: { S: userId },
-          recordType: { S: RECORD_TYPE }
-        },
+        KeyConditionExpression: "userId = :userId AND begins_with(recordType, :recordType)",
+        ExpressionAttributeValues: {
+          ":userId": { S: userId },
+          ":recordType": { S: RECORD_TYPE }
+        }
       })
     );
 
-    // If no user found, return appropriate error response since users should be created separately
-    //on the initial load
-    if (!userData.Item) {
+    // If no briefs found, return false
+    if (!briefsData.Items || briefsData.Items.length === 0) {
       return {
-        statusCode: 404,
+        statusCode: 200,
         headers,
-        body: JSON.stringify({ error: "User not found." }),
+        body: JSON.stringify({
+          success: true,
+          briefs: false
+        }),
       };
     }
 
-    const user = unmarshall(userData.Item);
-    const availableTokens = user.tokens || 0;
-    
+    // Transform the briefs data
+    const briefs = briefsData.Items.map(item => unmarshall(item));
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        remainingBriefs: availableTokens,
-        // totalBriefs: user.isAnonymous ? FREE_INITIAL_TOKENS : (user.totalTokensEarned || FREE_INITIAL_TOKENS),
-        availableTokens
+        success: true,
+        briefs
       }),
     };
   } catch (error) {

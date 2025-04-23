@@ -31,32 +31,8 @@ async function getUserData(userId) {
   );
 
   if (!userData.Item) {
-    // If user doesn't exist, create a new anonymous user profile
-    const newUser = {
-      userId,
-      recordType: RECORD_TYPE,
-      isAnonymous: true, // All users are anonymous by default until they authenticate
-      generationCount: 0,
-      tokens: 0,
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString()
-    };
-
-    await dynamo.send(
-      new PutItemCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          userId: { S: userId },
-          recordType: { S: RECORD_TYPE },
-          isAnonymous: { BOOL: true },
-          generationCount: { N: "0" },
-          tokens: { N: "0" },
-          createdAt: { S: newUser.createdAt },
-          lastUpdated: { S: newUser.lastUpdated }
-        },
-      })
-    );
-    return newUser;
+    // No longer creating a new user, just return null
+    return null;
   }
 
   return unmarshall(userData.Item);
@@ -64,7 +40,7 @@ async function getUserData(userId) {
 
 export const handler = async (event) => {
   try {
-    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    const body = event.body;
     const { questionnaire, userId } = body;
 
     if (!Array.isArray(questionnaire) || questionnaire.length === 0 || !userId) {
@@ -77,10 +53,20 @@ export const handler = async (event) => {
 
     // Get user data and check limits
     const userData = await getUserData(userId);
-    const { generationCount, tokens } = userData;
-    const remainingBriefs = Math.max(0, FREE_BRIEF_LIMIT - generationCount);
+    
+    // Return error if user not found
+    if (!userData) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: "User not found. Valid userId is required." }),
+      };
+    }
+    
+    const { tokens } = userData;
+    const remainingBriefs = Math.max(0, tokens);
 
-    if (generationCount > FREE_BRIEF_LIMIT && tokens <= 0) {
+    if (tokens <= 0) {
       return {
         statusCode: 429,
         headers,

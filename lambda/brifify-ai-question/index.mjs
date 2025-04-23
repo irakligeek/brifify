@@ -3,7 +3,6 @@ import OpenAI from "openai";
 import {
   DynamoDBClient,
   GetItemCommand,
-  PutItemCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
@@ -11,7 +10,6 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const dynamo = new DynamoDBClient({});
 const TABLE_NAME = process.env.DYNAMO_TABLE;
-const FREE_BRIEF_LIMIT = 3;
 const RECORD_TYPE = "USER_PROFILE"; // Define record type for user profiles
 
 const headers = {
@@ -61,8 +59,8 @@ async function getLastAssistantMessage(threadId) {
   );
 }
 
-async function getOrCreateUser(userId) {
-  // Try to get existing user
+async function getUserProfile(userId) {
+  // Get user profile from DynamoDB
   const userData = await dynamo.send(
     new GetItemCommand({
       TableName: TABLE_NAME,
@@ -73,51 +71,17 @@ async function getOrCreateUser(userId) {
     })
   );
 
-  if (userData.Item) {
-    return {
-      ...unmarshall(userData.Item),
-      isNew: false
-    };
+  if (!userData.Item) {
+    return null; // User not found - should be created separately
   }
 
-  // Create new user if doesn't exist
-  // Consider all users anonymous unless they have explicit authentication
-  const isAnonymous = true; // All users are anonymous by default until they authenticate
-  const newUser = {
-    userId,
-    recordType: RECORD_TYPE,
-    isAnonymous,
-    generationCount: 0,
-    tokens: 0,
-    createdAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
-  };
-
-  await dynamo.send(
-    new PutItemCommand({
-      TableName: TABLE_NAME,
-      Item: {
-        userId: { S: userId },
-        recordType: { S: RECORD_TYPE },
-        isAnonymous: { BOOL: isAnonymous },
-        generationCount: { N: "0" },
-        tokens: { N: "0" },
-        createdAt: { S: newUser.createdAt },
-        lastUpdated: { S: newUser.lastUpdated }
-      },
-    })
-  );
-
-  return {
-    ...newUser,
-    isNew: true
-  };
+  return unmarshall(userData.Item);
 }
 
 export const handler = async (event) => {
   try {
-    const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
-    const { messages, userThreadId, userId } = body;
+    const body = event.body;
+    const { userId, messages, userThreadId } = body;
 
     if (!Array.isArray(messages) || messages.length === 0 || !userId) {
       return {
@@ -127,18 +91,29 @@ export const handler = async (event) => {
       };
     }
 
-    // Get or create user
-    const user = await getOrCreateUser(userId);
-    const remainingBriefs = FREE_BRIEF_LIMIT - user.generationCount;
+    // Get user profile - expected to already exist
+    const user = await getUserProfile(userId);
+    
+    if (!user) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: "User not found." }),
+      };
+    }
+    
+    // Use token count to determine remaining briefs
+    const availableTokens = user.tokens || 0;
 
-    // Check if user has reached the limit
-    if (user.generationCount > FREE_BRIEF_LIMIT && user.tokens <= 0) {
+    // Check if user has tokens available
+    if (availableTokens <= 0) {
       return {
         statusCode: 429,
         headers,
         body: JSON.stringify({ 
-          error: "Brief limit reached",
-          remainingBriefs: 0
+          error: "No tokens available",
+          remainingBriefs: 0,
+          availableTokens: 0
         }),
       };
     }
@@ -164,8 +139,10 @@ export const handler = async (event) => {
     const reply = await getLastAssistantMessage(threadId);
 
     if (reply.toLowerCase().includes("done")) {
-      // Update generation count only when brief is complete
-      const newGenCount = user.generationCount + 1;
+      // Update token count only when brief is complete
+      // Deduct one token, but no longer track generationCount
+      const newTokens = availableTokens - 1;
+      
       await dynamo.send(
         new UpdateItemCommand({
           TableName: TABLE_NAME,
@@ -173,9 +150,9 @@ export const handler = async (event) => {
             userId: { S: userId },
             recordType: { S: RECORD_TYPE }
           },
-          UpdateExpression: "SET generationCount = :gen, lastUpdated = :updated",
+          UpdateExpression: "SET tokens = :tokens, lastUpdated = :updated",
           ExpressionAttributeValues: {
-            ":gen": { N: newGenCount.toString() },
+            ":tokens": { N: newTokens.toString() },
             ":updated": { S: new Date().toISOString() }
           },
         })
@@ -187,7 +164,8 @@ export const handler = async (event) => {
         body: JSON.stringify({ 
           message: reply, 
           threadId,
-          remainingBriefs: FREE_BRIEF_LIMIT - newGenCount
+          remainingBriefs: newTokens,
+          availableTokens: newTokens
         }),
       };
     }
@@ -198,7 +176,8 @@ export const handler = async (event) => {
       body: JSON.stringify({ 
         message: reply, 
         threadId,
-        remainingBriefs
+        remainingBriefs: availableTokens,
+        availableTokens: availableTokens
       }),
     };
   } catch (error) {

@@ -55,7 +55,7 @@ export default function WizardForm() {
 
     setIsLoading(true);
 
-    // console.log("anonymousUser?.id:", anonymousUser?.id);
+    console.log("anonymousUser?.id:", anonymousUser?.id);
 
     try {
       const newUserMessage = { role: "user", content: userAnswer };

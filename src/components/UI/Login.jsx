@@ -1,17 +1,9 @@
-import { useAuth } from "react-oidc-context";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { useAuth } from "../../context/auth/AuthContext";
+import { Loader2, User, LogOut } from "lucide-react";
 import { Button } from "./button";
 
 export default function Login() {
   const auth = useAuth();
-
-  const signOutRedirect = () => {
-    auth.removeUser();
-    const clientId = import.meta.env.VITE_APP_CLIENT_ID;
-    const logoutUri = import.meta.env.VITE_APP_REDIRECT_URI;
-    const cognitoDomain = import.meta.env.VITE_APP_COGNITO_DOMAIN;
-    window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
-  };
 
   if (auth.isLoading) {
     return (
@@ -28,7 +20,7 @@ export default function Login() {
         variant="ghost" 
         size="sm"
         className="text-red-500 hover:text-red-600"
-        onClick={() => auth.signinRedirect()}
+        onClick={() => auth.login()}
       >
         Error - Try Again
       </Button>
@@ -36,10 +28,11 @@ export default function Login() {
   }
 
   if (auth.isAuthenticated) {
+    // Display user email when authenticated
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center">
         <Button
-          onClick={signOutRedirect}
+          onClick={() => auth.logout()}
           variant="ghost"
           size="sm"
           className="text-gray-700 hover:text-gray-900"
@@ -52,7 +45,7 @@ export default function Login() {
 
   return (
     <Button
-      onClick={() => auth.signinRedirect()}
+      onClick={() => auth.login()}
       variant="ghost"
       size="sm"
       className="text-gray-700 hover:text-gray-900"
