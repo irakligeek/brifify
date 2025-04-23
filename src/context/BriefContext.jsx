@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { ClientJS } from 'clientjs';
 import axios from 'axios';
+import { useAuth } from './auth/AuthContext';
 
 const BRIEF_STORAGE_KEY = 'brifify_brief';
 const ANONYMOUS_USER_KEY = 'brifify_anonymous_user';
@@ -20,6 +21,7 @@ const BriefProvider = ({ children }) => {
   const [anonymousUser, setAnonymousUser] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [remainingBriefs, setRemainingBriefs] = useState(null);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     initializeAnonymousUser();
@@ -27,10 +29,10 @@ const BriefProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (anonymousUser?.id) {
+    if (anonymousUser?.id || (isAuthenticated && user)) {
       fetchRemainingBriefs();
     }
-  }, [anonymousUser?.id]);
+  }, [anonymousUser?.id, isAuthenticated, user]);
 
   const getIpAddress = async () => {
     try {
@@ -196,11 +198,20 @@ const BriefProvider = ({ children }) => {
 
   const fetchRemainingBriefs = async () => {
     try {
+      // Determine which user data to send based on authentication status
+      const userData = isAuthenticated && user 
+        ? { 
+            userId: user.sub,
+            sub: user.sub,
+            email: user.email,
+            // cognito_groups: user['cognito:groups'],
+            // email_verified: user.email_verified
+          }
+        : { userId: anonymousUser?.id };
+      
       const response = await axios.post(
         `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-ramaining-tokens`,
-        {
-          userId: anonymousUser.id
-        },
+        userData,
         {
           headers: {
             "Content-Type": "application/json",
@@ -215,7 +226,7 @@ const BriefProvider = ({ children }) => {
   };
 
   return (
-    <BriefContext.Provider value={{ 
+    <BriefContext.Provider value={{
       brief, 
       updateBrief, 
       generateNewBrief,

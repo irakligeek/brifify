@@ -1,9 +1,31 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import BriefMetadata from "../UI/BriefMetadata";
+import Logo from "../UI/Logo";
 
 export default function Sidebar({ onOpenChange }) {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Check if screen is md or larger and set isOpen accordingly
+  useEffect(() => {
+    const checkScreenSize = () => {
+      // 768px is the default md breakpoint in Tailwind
+      if (window.innerWidth >= 768) {
+        setIsOpen(true);
+      } else if (!isOpen) {
+        setIsOpen(false);
+      }
+    };
+    
+    // Initial check
+    checkScreenSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   useEffect(() => {
     onOpenChange?.(isOpen);
@@ -14,14 +36,19 @@ export default function Sidebar({ onOpenChange }) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed md:static left-0 top-[73px] !z-40 bg-white border-r
-          h-[calc(100vh-73px)] transition-all duration-200 ease-in-out
+          fixed md:static left-0 !z-40 bg-white border-r h-screen
+          transition-all duration-200 ease-in-out
           md:!w-64 overflow-hidden
           ${isOpen ? "w-64" : "w-[50px]"}
         `}
       >
+        {/* Logo at the top */}
+        <div className={`px-8 py-3 mt-8 ${!isOpen ? 'hidden md:flex' : 'flex'}`}>
+          <Logo />
+        </div>
+
         {/* Toggle button container with proper spacing */}
-        <div className="h-14 relative">
+        <div className="h-14 relative md:hidden">
           <div
             className={`
             absolute top-4 w-6 h-6
@@ -30,7 +57,7 @@ export default function Sidebar({ onOpenChange }) {
           >
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="!z-[100] p-1 md:hidden"
+              className="!z-[100] p-1"
               aria-label="Toggle sidebar"
             >
               <div className="flex">
@@ -59,7 +86,7 @@ export default function Sidebar({ onOpenChange }) {
         {/* Content container */}
         <div
           className={`
-          h-[calc(100%-3.5rem)] md:overflow-y-auto
+          md:h-[calc(100%-4rem)] h-[calc(100%-3.5rem)] md:overflow-y-auto
           ${
             isOpen
               ? "opacity-100 w-64"

@@ -2,8 +2,7 @@
 import OpenAI from "openai";
 import {
   DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand
+  GetItemCommand
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 

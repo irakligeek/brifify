@@ -45,9 +45,11 @@ import {
   shareBrief,
 } from "@/lib/document/briefUtils";
 import { useBrief } from "@/context/BriefContext";
+import { useAuth } from "@/context/auth/AuthContext";
 
 export default function ProjectBrief({ initialData }) {
-  const { updateBrief, generateNewBrief, anonymousUser } = useBrief();
+  const { updateBrief, generateNewBrief } = useBrief();
+  const { user, isAuthenticated } = useAuth();
   const [briefData, setBriefData] = useState({
     ...initialData,
     technical_requirements: initialData?.technical_requirements || [],
@@ -113,16 +115,16 @@ export default function ProjectBrief({ initialData }) {
   const shareUrl = async () => {
     try {
       setSharing(true);
-      await shareBrief({briefData});
+      await shareBrief({
+        briefData,
+        user,
+        isAuthenticated
+      });
     } catch (err) {
       console.error('Share failed:', err);
     } finally {
       setTimeout(() => setSharing(false), 2000);
     }
-  };
-
-  const handleGenerateNewBrief = () => {
-    generateNewBrief();
   };
 
   if (!briefData) {

@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
           },
         }
       );
-      console.log('User data saved:', response.data);
+      // console.log('User data saved:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error saving user data:', error);

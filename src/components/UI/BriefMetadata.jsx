@@ -47,7 +47,16 @@ export default function BriefMetadata() {
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-700 text-left">My Briefs</h3>
           <button
-            onClick={generateNewBrief}
+            onClick={() => {
+              // Clear the brief data
+              generateNewBrief();
+              
+              // Reset the wizard state by setting a flag in localStorage
+              localStorage.setItem('brifify_reset_wizard', 'true');
+              
+              // Force a refresh to ensure the wizard resets
+              window.location.reload();
+            }}
             disabled={remainingBriefs === 0}
             className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
           >

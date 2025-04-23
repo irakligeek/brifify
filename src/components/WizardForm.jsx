@@ -3,6 +3,7 @@ import axios from "axios";
 import Questionnaire from "./Questionnaire";
 import ProjectBrief from "./ProjectBrief";
 import { useBrief } from "@/context/BriefContext";
+import { useAuth } from "@/context/auth/AuthContext";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -14,10 +15,29 @@ export default function WizardForm() {
     isInitializing,
     fetchRemainingBriefs,
   } = useBrief();
+  const { user, isAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
+  
+  // Helper function to get the appropriate user data for API calls
+  const getUserData = () => {
+    if (isAuthenticated && user) {
+      // If authenticated, use the Cognito user data
+      return {
+        userId: user.sub,
+        sub: user.sub,
+        email: user.email,
+        cognito_groups: user['cognito:groups'],
+        email_verified: user.email_verified
+      };
+    } else {
+      // If not authenticated, use anonymous user ID
+      return { userId: anonymousUser?.id };
+    }
+  };
+
   const [questions, setQuestions] = useState([
     {
       id: "initialQuestion",
@@ -27,6 +47,28 @@ export default function WizardForm() {
   ]);
 
   const [formData, setFormData] = useState({});
+  
+  // Check for and handle the wizard reset flag
+  useEffect(() => {
+    const resetFlag = localStorage.getItem('brifify_reset_wizard');
+    if (resetFlag === 'true') {
+      // Reset all wizard state
+      setCurrentStep(0);
+      setThreadId(null);
+      setConversationHistory([]);
+      setFormData({});
+      setQuestions([
+        {
+          id: "initialQuestion",
+          question: "What is your project about?",
+          placeholder: "Describe your project in a few words",
+        },
+      ]);
+      
+      // Clear the flag
+      localStorage.removeItem('brifify_reset_wizard');
+    }
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -55,7 +97,7 @@ export default function WizardForm() {
 
     setIsLoading(true);
 
-    console.log("anonymousUser?.id:", anonymousUser?.id);
+    // console.log("anonymousUser?.id:", anonymousUser?.id);
 
     try {
       const newUserMessage = { role: "user", content: userAnswer };
@@ -75,7 +117,7 @@ export default function WizardForm() {
         {
           messages: updatedHistory,
           userThreadId: threadId,
-          userId: anonymousUser?.id,
+          ...getUserData() // Use the helper function to get appropriate user data
         },
         {
           headers: {
@@ -108,8 +150,8 @@ export default function WizardForm() {
         return;
       }
 
-      // Check for 'done' case-insensitively and don't add it as a question
-      if (message.toLowerCase().trim() === "done") {
+      // Check for 'done' more flexibly, ignoring case and punctuation
+      if (message.toLowerCase().replace(/[.,!?;:]/g, '').trim() === "done") {
         try {
           const briefResponse = await axios.post(
             "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/generate-brief",
@@ -123,7 +165,7 @@ export default function WizardForm() {
                 }
                 return acc;
               }, []),
-              userId: anonymousUser?.id,
+              ...getUserData() // Use the helper function to get appropriate user data
             },
             {
               headers: {

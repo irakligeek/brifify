@@ -159,16 +159,25 @@ export const copyBriefToClipboard = async (briefData) => {
   }
 };
 
-export const shareBrief = async ({ briefData }) => {
+export const shareBrief = async ({ briefData, user, isAuthenticated }) => {
   try {
-    // Get anonymous user data from localStorage
+    // Get user data based on authentication status
     const anonymousUser = JSON.parse(localStorage.getItem('brifify_anonymous_user') || '{}');
+    
+    // Determine which user data to send based on authentication status
+    const userData = isAuthenticated && user 
+      ? { 
+          userId: user.sub,
+          sub: user.sub,
+          email: user.email
+        }
+      : { userId: anonymousUser?.id };
     
     const response = await axios.post(
       "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/share-brief",
       {
         briefData,
-        userId: anonymousUser?.id
+        ...userData
       },
       {
         headers: {
