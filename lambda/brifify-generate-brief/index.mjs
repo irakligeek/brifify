@@ -2,7 +2,8 @@
 import OpenAI from "openai";
 import {
   DynamoDBClient,
-  GetItemCommand
+  GetItemCommand,
+  UpdateItemCommand
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
@@ -17,6 +18,13 @@ const headers = {
   "Access-Control-Allow-Methods": "OPTIONS,POST",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
+
+// Generate a unique ID using timestamp and random string
+function generateUniqueId() {
+  const timestamp = new Date().getTime();
+  const randomStr = Math.random().toString(36).substring(2, 8);
+  return `${timestamp}-${randomStr}`;
+}
 
 async function getUserData(userId) {
   const userData = await dynamo.send(
@@ -39,7 +47,22 @@ async function getUserData(userId) {
 
 export const handler = async (event) => {
   try {
-    const body = event.body;
+    // Safely parse the body
+    let body;
+    if (typeof event.body === 'string') {
+      try {
+        body = JSON.parse(event.body);
+      } catch (e) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Invalid JSON in request body" }),
+        };
+      }
+    } else {
+      body = event.body;
+    }
+    
     const { questionnaire, userId } = body;
 
     if (!Array.isArray(questionnaire) || questionnaire.length === 0 || !userId) {
@@ -63,9 +86,9 @@ export const handler = async (event) => {
     }
     
     const { tokens } = userData;
-    const remainingBriefs = Math.max(0, tokens);
+    const availableTokens = Math.max(0, tokens);
 
-    if (tokens <= 0) {
+    if (availableTokens <= 0) {
       return {
         statusCode: 429,
         headers,
@@ -152,14 +175,50 @@ export const handler = async (event) => {
       };
     }
 
-    const brief = JSON.parse(functionCall.function.arguments);
+    const briefData = JSON.parse(functionCall.function.arguments);
+    
+    // Generate a unique ID for the brief
+    const briefId = generateUniqueId();
+    
+    // Create the final brief object with the ID included
+    const brief = {
+      ...briefData,
+      briefId: briefId,
+      createdAt: new Date().toISOString()
+    };
+
+    // Calculate the new token count after deduction
+    const newTokens = availableTokens - 1;
+    
+    // Update the user's token count in DynamoDB
+    try {
+      await dynamo.send(
+        new UpdateItemCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            userId: { S: userId },
+            recordType: { S: RECORD_TYPE }
+          },
+          UpdateExpression: "SET tokens = :tokens, lastUpdated = :updated",
+          ExpressionAttributeValues: {
+            ":tokens": { N: newTokens.toString() },
+            ":updated": { S: new Date().toISOString() }
+          },
+        })
+      );
+      
+      console.log(`Successfully updated token count for user ${userId}: ${availableTokens} -> ${newTokens}`);
+    } catch (updateError) {
+      console.error("Error updating token count:", updateError);
+      // Continue even if token update fails, to avoid blocking the brief generation
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({ 
         brief,
-        remainingBriefs
+        remainingBriefs: newTokens
       }),
     };
   } catch (error) {

@@ -21,7 +21,8 @@ const BriefProvider = ({ children }) => {
   const [anonymousUser, setAnonymousUser] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [remainingBriefs, setRemainingBriefs] = useState(null);
-  const { user, isAuthenticated } = useAuth();
+  const [savedBriefs, setSavedBriefs] = useState([]);
+  const auth = useAuth();
 
   useEffect(() => {
     initializeAnonymousUser();
@@ -29,10 +30,15 @@ const BriefProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (anonymousUser?.id || (isAuthenticated && user)) {
+    if (anonymousUser?.id || (auth.isAuthenticated && auth.user)) {
       fetchRemainingBriefs();
     }
-  }, [anonymousUser?.id, isAuthenticated, user]);
+    
+    // Fetch saved briefs when user logs in
+    if (auth.isAuthenticated && auth.user) {
+      fetchUserBriefs();
+    }
+  }, [anonymousUser?.id, auth.isAuthenticated, auth.user]);
 
   const getIpAddress = async () => {
     try {
@@ -118,7 +124,7 @@ const BriefProvider = ({ children }) => {
         };
 
         localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(updatedUser));
-        // console.log('Updated existing anonymous user:', updatedUser);
+        
         setAnonymousUser(updatedUser);
       } catch (error) {
         console.error('Error parsing saved anonymous user:', error);
@@ -164,7 +170,6 @@ const BriefProvider = ({ children }) => {
     };
 
     localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(user));
-    console.log('Created new anonymous user:', user);
     setAnonymousUser(user);
   };
 
@@ -196,14 +201,166 @@ const BriefProvider = ({ children }) => {
     return true;
   };
 
+  const saveBrief = async (briefData) => {
+
+    if (!auth.isAuthenticated || !auth.user) {
+      return null;
+    }
+    
+    try {
+      // Changed from accessToken to idToken or use the id_token directly
+      const userToken = auth.user.idToken || auth.user.id_token;
+      
+      if (!userToken) {
+        console.error("No authentication token available");
+        return null;
+      }
+
+      // Add cache-busting parameter and disable browser caching
+      const response = await axios.post(
+        `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/save-brief`,
+        {
+          userId: auth.user.sub,
+          briefData,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json"
+          },
+        }
+      );
+    
+      
+      const responseData = JSON.parse(response.data.body);
+      
+      if (responseData.success) {
+        // Refresh the user's briefs list
+        fetchUserBriefs();
+        return responseData;
+      } else {
+        console.error("Error saving brief:", responseData.error);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error saving brief:", error);
+      return null;
+    }
+  };
+
+  const fetchUserBriefs = async () => {
+    if (!auth.isAuthenticated || !auth.user) {
+      return;
+    }
+    
+    try {
+      const userToken = auth.user.accessToken;
+      
+      if (!userToken) {
+        console.error("No authentication token available");
+        return;
+      }
+      
+      // PLACEHOLDER: API endpoint not yet created
+      // When API is ready, replace this with actual API call
+      console.log("NOTE: get-user-briefs API not implemented yet - using placeholder data");
+      
+      // Temp placeholder data for development
+      const placeholderBriefs = [];
+      setSavedBriefs(placeholderBriefs);
+      
+      /* Uncomment when API is implemented
+      const response = await axios.post(
+        "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-user-briefs",
+        {
+          userId: auth.user.sub
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      const responseData = JSON.parse(response.data.body);
+      
+      if (responseData.briefs) {
+        setSavedBriefs(responseData.briefs);
+      } else {
+        console.error("Error fetching briefs:", responseData.error);
+      }
+      */
+    } catch (error) {
+      console.error("Error fetching user briefs:", error);
+      // Set empty array to prevent UI issues
+      setSavedBriefs([]);
+    }
+  };
+
+  const getBriefById = async (briefId) => {
+    if (!auth.isAuthenticated || !auth.user) {
+      return null;
+    }
+    
+    try {
+      const userToken = auth.user.accessToken;
+      
+      if (!userToken) {
+        console.error("No authentication token available");
+        return null;
+      }
+      
+      // PLACEHOLDER: API endpoint not yet created
+      // When API is ready, replace this with actual API call
+      console.log("NOTE: get-brief API not implemented yet - using placeholder data");
+      
+      // Use the currently loaded brief as a fallback if IDs match
+      if (brief && brief.briefId === briefId) {
+        return brief;
+      }
+      
+      // Return null since API doesn't exist yet
+      return null;
+      
+      /* Uncomment when API is implemented
+      const response = await axios.post(
+        "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-brief",
+        {
+          userId: auth.user.sub,
+          briefId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      const responseData = JSON.parse(response.data.body);
+      
+      if (responseData.brief) {
+        return responseData.brief;
+      } else {
+        console.error("Error fetching brief:", responseData.error);
+        return null;
+      }
+      */
+    } catch (error) {
+      console.error(`Error fetching brief ${briefId}:`, error);
+      return null;
+    }
+  };
+
   const fetchRemainingBriefs = async () => {
     try {
       // Determine which user data to send based on authentication status
-      const userData = isAuthenticated && user 
+      const userData = auth.isAuthenticated && auth.user 
         ? { 
-            userId: user.sub,
-            sub: user.sub,
-            email: user.email,
+            userId: auth.user.sub,
+            sub: auth.user.sub,
+            email: auth.user.email,
             // cognito_groups: user['cognito:groups'],
             // email_verified: user.email_verified
           }
@@ -233,7 +390,11 @@ const BriefProvider = ({ children }) => {
       anonymousUser,
       isInitializing,
       remainingBriefs,
-      fetchRemainingBriefs
+      fetchRemainingBriefs,
+      saveBrief,
+      savedBriefs,
+      fetchUserBriefs,
+      getBriefById
     }}>
       {children}
     </BriefContext.Provider>

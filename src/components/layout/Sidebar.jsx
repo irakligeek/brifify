@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, User, Mail, LogOut } from "lucide-react";
 import BriefMetadata from "../UI/BriefMetadata";
 import Logo from "../UI/Logo";
+import { useAuth } from "../../context/auth/AuthContext";
 
 export default function Sidebar({ onOpenChange }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
   
   // Check if screen is md or larger and set isOpen accordingly
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function Sidebar({ onOpenChange }) {
         className={`
           fixed md:static left-0 !z-40 bg-white border-r h-screen
           transition-all duration-200 ease-in-out
-          md:!w-64 overflow-hidden
+          md:!w-64 overflow-hidden flex flex-col
           ${isOpen ? "w-64" : "w-[50px]"}
         `}
       >
@@ -83,10 +85,10 @@ export default function Sidebar({ onOpenChange }) {
           </div>
         </div>
 
-        {/* Content container */}
+        {/* Content container - reduced height to make room for account menu */}
         <div
           className={`
-          md:h-[calc(100%-4rem)] h-[calc(100%-3.5rem)] md:overflow-y-auto
+          md:h-[calc(100%-12rem)] flex-grow md:overflow-y-auto
           ${
             isOpen
               ? "opacity-100 w-64"
@@ -97,6 +99,61 @@ export default function Sidebar({ onOpenChange }) {
         >
           <div className="p-4">
             <BriefMetadata />
+          </div>
+        </div>
+
+        {/* Account menu at the bottom with margin-bottom to push it up from bottom edge */}
+        <div 
+          className={`
+            mt-auto border-t p-4 mb-16 w-full
+            ${!isOpen ? "!opacity-0 md:!opacity-100" : "!opacity-100"}
+            transition-opacity duration-200
+          `}
+        >
+          {/* Only show user account info when authenticated */}
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-3 py-2">
+              <div className="p-2 flex-shrink-0">
+                <User size={14} className="text-gray-600" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-gray-700 truncate">
+                  {user.email}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Add logout link when authenticated */}
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-3 py-2">
+              <div className="p-2 flex-shrink-0">
+                <LogOut size={14} className="text-gray-600" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <button 
+                  onClick={logout}
+                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Contact info */}
+          <div className="flex items-center gap-3 py-2">
+            <div className=" p-2 flex-shrink-0">
+              <Mail size={14} className="text-gray-600" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <a 
+                href="mailto:irakligeek@gmail.com" 
+                className="text-sm !text-gray-600 truncate block "
+              >
+                Contact
+              </a>
+            </div>
           </div>
         </div>
       </aside>

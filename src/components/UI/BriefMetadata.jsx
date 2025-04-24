@@ -38,7 +38,7 @@ export default function BriefMetadata() {
             className="w-fit flex items-left justify-start gap-2 bg-gradient-to-r from-pink-400 to-purple-700 hover:from-pink-500 hover:to-purple-800 text-white border-none"
           >
             <Coins className="h-4 w-4" />
-            Get More Tokens
+            Generate More Briefs
           </Button>
           <div className="pt-4 border-b border-gray-200" />
         </div>

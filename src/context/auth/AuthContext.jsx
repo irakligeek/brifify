@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
   const oidcAuth = useOidcAuth();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  
   // Function to save user data to the backend
   const saveUser = async (userData) => {
     try {
@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }) => {
 
   // Save anonymous user on initial load
   useEffect(() => {
+    
     const saveAnonymousUser = async () => {
       if (!oidcAuth.isAuthenticated && !oidcAuth.isLoading) {
         // Get anonymous user data from localStorage if available
@@ -67,7 +68,8 @@ export const AuthProvider = ({ children }) => {
     if (oidcAuth.isAuthenticated && oidcAuth.user) {
       const authenticatedUser = {
         ...oidcAuth.user.profile,
-        accessToken: oidcAuth.user.access_token,
+        accessToken: oidcAuth.user.id_token, // Changed from access_token to id_token
+        idToken: oidcAuth.user.id_token, // Add explicit idToken field for clarity
         isAuthenticated: true,
       };
       
@@ -106,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   };
 
+  
   return (
     <AuthContext.Provider
       value={{

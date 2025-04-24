@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import axios from "axios";
 import Questionnaire from "./Questionnaire";
 import ProjectBrief from "./ProjectBrief";
@@ -14,23 +14,24 @@ export default function WizardForm() {
     anonymousUser,
     isInitializing,
     fetchRemainingBriefs,
+    saveBrief,
   } = useBrief();
-  const { user, isAuthenticated } = useAuth();
+  const auth = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
-  
+
   // Helper function to get the appropriate user data for API calls
   const getUserData = () => {
-    if (isAuthenticated && user) {
+    if (auth.isAuthenticated && auth.user) {
       // If authenticated, use the Cognito user data
       return {
-        userId: user.sub,
-        sub: user.sub,
-        email: user.email,
-        cognito_groups: user['cognito:groups'],
-        email_verified: user.email_verified
+        userId: auth.user.sub,
+        sub: auth.user.sub,
+        email: auth.user.email,
+        cognito_groups: auth.user["cognito:groups"],
+        email_verified: auth.user.email_verified,
       };
     } else {
       // If not authenticated, use anonymous user ID
@@ -47,11 +48,11 @@ export default function WizardForm() {
   ]);
 
   const [formData, setFormData] = useState({});
-  
+
   // Check for and handle the wizard reset flag
   useEffect(() => {
-    const resetFlag = localStorage.getItem('brifify_reset_wizard');
-    if (resetFlag === 'true') {
+    const resetFlag = localStorage.getItem("brifify_reset_wizard");
+    if (resetFlag === "true") {
       // Reset all wizard state
       setCurrentStep(0);
       setThreadId(null);
@@ -64,9 +65,9 @@ export default function WizardForm() {
           placeholder: "Describe your project in a few words",
         },
       ]);
-      
+
       // Clear the flag
-      localStorage.removeItem('brifify_reset_wizard');
+      localStorage.removeItem("brifify_reset_wizard");
     }
   }, []);
 
@@ -97,8 +98,6 @@ export default function WizardForm() {
 
     setIsLoading(true);
 
-    // console.log("anonymousUser?.id:", anonymousUser?.id);
-
     try {
       const newUserMessage = { role: "user", content: userAnswer };
       const currentQuestionMessage = {
@@ -117,7 +116,7 @@ export default function WizardForm() {
         {
           messages: updatedHistory,
           userThreadId: threadId,
-          ...getUserData() // Use the helper function to get appropriate user data
+          ...getUserData(), // Use the helper function to get appropriate user data
         },
         {
           headers: {
@@ -151,7 +150,12 @@ export default function WizardForm() {
       }
 
       // Check for 'done' more flexibly, ignoring case and punctuation
-      if (message.toLowerCase().replace(/[.,!?;:]/g, '').trim() === "done") {
+      if (
+        message
+          .toLowerCase()
+          .replace(/[.,!?;:]/g, "")
+          .trim() === "done"
+      ) {
         try {
           const briefResponse = await axios.post(
             "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/generate-brief",
@@ -165,7 +169,7 @@ export default function WizardForm() {
                 }
                 return acc;
               }, []),
-              ...getUserData() // Use the helper function to get appropriate user data
+              ...getUserData(), // Use the helper function to get appropriate user data
             },
             {
               headers: {
@@ -186,6 +190,23 @@ export default function WizardForm() {
 
           if (generatedBrief) {
             updateBrief(generatedBrief);
+
+            // If the user is authenticated, save the brief using the context function
+            if (auth.isAuthenticated && auth.user) {
+              try {
+                const saveResult = await saveBrief(generatedBrief);
+                if (saveResult && saveResult.success) {
+                  toast.success("Brief saved successfully!");
+                } else {
+                  console.error("Error saving brief");
+                  toast.error("Failed to save brief. Please try again.");
+                }
+              } catch (error) {
+                console.error("Error saving brief:", error);
+                toast.error("Failed to save brief. Please try again.");
+              }
+            }
+
             // Fetch updated remaining briefs count
             fetchRemainingBriefs();
           }

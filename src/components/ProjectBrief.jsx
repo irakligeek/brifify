@@ -35,6 +35,7 @@ import {
   Check,
   FileIcon,
   Link2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Packer } from "docx";
@@ -48,7 +49,7 @@ import { useBrief } from "@/context/BriefContext";
 import { useAuth } from "@/context/auth/AuthContext";
 
 export default function ProjectBrief({ initialData }) {
-  const { updateBrief, generateNewBrief } = useBrief();
+  const { updateBrief, generateNewBrief, saveBrief } = useBrief();
   const { user, isAuthenticated } = useAuth();
   const [briefData, setBriefData] = useState({
     ...initialData,
@@ -63,6 +64,7 @@ export default function ProjectBrief({ initialData }) {
   const [open, setOpen] = useState(false);
   const [copying, setCopying] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const briefRef = useRef(null);
 
   const handleEditChange = (field, value) => {
@@ -74,10 +76,36 @@ export default function ProjectBrief({ initialData }) {
     });
   };
 
-  const handleSave = () => {
-    setBriefData(editData);
-    updateBrief(editData);
-    setOpen(false);
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      
+      // Update local state
+      setBriefData(editData);
+      updateBrief(editData);
+      
+      // If the user is authenticated, save the updated brief to the server
+      if (isAuthenticated && user) {
+        try {
+          const saveResult = await saveBrief(editData);
+          if (saveResult && saveResult.success) {
+            toast.success(saveResult.message || "Brief updated successfully!");
+          } else {
+            console.error("Error saving brief - no success in response");
+            toast.error("Failed to save brief. Please try again.");
+          }
+        } catch (error) {
+          console.error("Error saving brief:", error);
+          toast.error("Failed to save brief. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Error during brief save:", error);
+      toast.error("An error occurred while saving the brief");
+    } finally {
+      setIsSaving(false);
+      setOpen(false);
+    }
   };
 
   const downloadBrief = async (format) => {
@@ -260,6 +288,9 @@ export default function ProjectBrief({ initialData }) {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {Object.entries(editData).map(([key, value]) => {
+                  // Skip certain technical fields that shouldn't be edited
+                  if (key === 'briefId' || key === 'createdAt' || key === 'updatedAt') return null;
+                  
                   // Format the field name for display
                   const fieldName = key
                     .split('_')
@@ -292,10 +323,19 @@ export default function ProjectBrief({ initialData }) {
                 })}
               </div>
               <DialogFooter className="text-left">
-                <Button variant="outline" onClick={() => setOpen(false)}>
+                <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>Save Changes</Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
