@@ -60,6 +60,8 @@ export const AuthProvider = ({ children }) => {
 
   // Update user data when auth state changes
   useEffect(() => {
+    // console.log("Auth state changed:", oidcAuth.user);
+
     if (oidcAuth.isLoading) {
       setIsLoading(true);
       return;

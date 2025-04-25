@@ -133,7 +133,8 @@ export default function Sidebar({ onOpenChange }) {
               <div className="flex-1 min-w-0 text-left">
                 <button 
                   onClick={logout}
-                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer"
+                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
+                  font-medium"
                 >
                   Logout
                 </button>

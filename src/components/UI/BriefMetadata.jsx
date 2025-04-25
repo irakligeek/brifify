@@ -2,10 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Coins, Loader2, FileIcon, FileText } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
+import { useAuth } from "@/context/auth/AuthContext";
 import UserBriefsList from "./UserBriefsList";
 
 export default function BriefMetadata() {
   const { remainingBriefs, generateNewBrief } = useBrief();
+  const { isAuthenticated } = useAuth();
 
   const handleGetMoreTokens = () => {
     // TODO: Implement token purchase functionality
@@ -46,11 +48,10 @@ export default function BriefMetadata() {
 
         {/* My Briefs Section */}
         <div className="space-y-3">
-          {/* <button
+        <button
             onClick={() => {
               // Clear the brief data
               generateNewBrief();
-
               // Reset the wizard state by setting a flag in localStorage
               localStorage.setItem("brifify_reset_wizard", "true");
 
@@ -58,12 +59,14 @@ export default function BriefMetadata() {
               window.location.reload();
             }}
             disabled={remainingBriefs === 0}
-            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 text-sm cursor-pointer
+            disabled:text-gray-400 disabled:cursor-not-allowed 
+            pl-1 "
           >
             <FileIcon className="h-4 w-4" />
-            <span className="underline">Start New</span>
-          </button> */}
-          <UserBriefsList />
+            <span className="text-sm font-medium truncate">Create New</span>
+          </button>
+          {isAuthenticated && <UserBriefsList />}
         </div>
       </div>
     </Card>

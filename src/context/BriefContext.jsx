@@ -258,6 +258,54 @@ const BriefProvider = ({ children }) => {
     }
   };
 
+  const deleteBrief = async (briefId) => {
+    if (!auth.isAuthenticated || !auth.user) {
+      return { success: false, error: "User not authenticated" };
+    }
+    
+    try {
+      const userToken = auth.user.idToken || auth.user.id_token;
+      
+      if (!userToken) {
+        console.error("No authentication token available");
+        return { success: false, error: "No authentication token available" };
+      }
+
+      const response = await axios.delete(
+        `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/delete-brief`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json"
+          },
+          data: {
+            userId: auth.user.sub,
+            briefId
+          }
+        }
+      );
+      
+      const responseData = response.data.body ? JSON.parse(response.data.body) : response.data;
+      
+      if (responseData.success) {
+        // Refresh the user's briefs list after successful deletion
+        await fetchUserBriefs();
+        // Clear the current brief if it was the one deleted
+        if (brief && brief.briefId === briefId) {
+          setBrief(null);
+          localStorage.removeItem(BRIEF_STORAGE_KEY);
+        }
+        return responseData;
+      } else {
+        console.error("Error deleting brief:", responseData.error);
+        return { success: false, error: responseData.error || "Failed to delete brief" };
+      }
+    } catch (error) {
+      console.error("Error deleting brief:", error);
+      return { success: false, error: error.message || "Failed to delete brief" };
+    }
+  };
+
   const fetchUserBriefs = async () => {
     if (!auth.isAuthenticated || !auth.user) {
       setSavedBriefs([]);
@@ -307,21 +355,8 @@ const BriefProvider = ({ children }) => {
         
         setSavedBriefs(processedBriefs);
         
-        // Load the most recent brief for logged-in users if there's at least one brief
-        if (processedBriefs.length > 0) {
-          // Sort briefs by createdAt or timestamp, most recent first
-          const sortedBriefs = [...processedBriefs].sort((a, b) => {
-            // First check top-level createdAt
-            const dateA = new Date(a.createdAt || a.updatedAt || (a.briefData?.createdAt) || 0);
-            const dateB = new Date(b.createdAt || b.updatedAt || (b.briefData?.createdAt) || 0);
-            return dateB - dateA; // Most recent first
-          });
-          
-          // Load the most recent brief into the current brief state
-          const mostRecentBrief = sortedBriefs[0];
-          setBrief(mostRecentBrief);
-          console.log('Loaded most recent brief:', mostRecentBrief.title);
-        }
+        // We no longer automatically load the most recent brief
+        // This allows the questionnaire wizard to be shown by default
       } else if (responseData.success && responseData.briefs === false) {
         // No briefs found
         setSavedBriefs([]);
@@ -430,6 +465,7 @@ const BriefProvider = ({ children }) => {
       remainingBriefs,
       fetchRemainingBriefs,
       saveBrief,
+      deleteBrief,
       savedBriefs,
       fetchUserBriefs,
       getBriefById
