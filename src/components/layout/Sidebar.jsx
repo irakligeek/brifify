@@ -112,7 +112,7 @@ export default function Sidebar({ onOpenChange }) {
         >
           {/* Only show user account info when authenticated */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3 py-2">
+            <div className="flex items-center gap-2 py-1">
               <div className="p-2 flex-shrink-0">
                 <User size={14} className="text-gray-600" />
               </div>
@@ -126,7 +126,7 @@ export default function Sidebar({ onOpenChange }) {
 
           {/* Add logout link when authenticated */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3 py-2">
+            <div className="flex items-center gap-2 py-1">
               <div className="p-2 flex-shrink-0">
                 <LogOut size={14} className="text-gray-600" />
               </div>
@@ -142,7 +142,7 @@ export default function Sidebar({ onOpenChange }) {
           ) : null}
 
           {/* Contact info */}
-          <div className="flex items-center gap-3 py-2">
+          <div className="flex items-center gap-2 py-1">
             <div className=" p-2 flex-shrink-0">
               <Mail size={14} className="text-gray-600" />
             </div>

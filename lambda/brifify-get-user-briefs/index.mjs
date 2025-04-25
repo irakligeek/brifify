@@ -11,13 +11,13 @@ const RECORD_TYPE = "BRIEF";
 
 const headers = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "OPTIONS,POST",
+  "Access-Control-Allow-Methods": "OPTIONS,GET",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 export const handler = async (event) => {
   try {
-    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    const body = event.body;
     const { userId } = body;
 
     if (!userId) {

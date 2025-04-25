@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
     
     const saveAnonymousUser = async () => {
       if (!oidcAuth.isAuthenticated && !oidcAuth.isLoading) {
-        // Get anonymous user data from localStorage if available
+        // Get anonymous user data from local Storage if available
         const anonymousUser = JSON.parse(localStorage.getItem('brifify_anonymous_user') || '{}');
         
         if (anonymousUser?.id) {

@@ -27,7 +27,7 @@ const BriefProvider = ({ children }) => {
   useEffect(() => {
     initializeAnonymousUser();
     loadBrief();
-  }, []);
+  }, [auth.isAuthenticated]);
 
   useEffect(() => {
     if (anonymousUser?.id || (auth.isAuthenticated && auth.user)) {
@@ -174,30 +174,40 @@ const BriefProvider = ({ children }) => {
   };
 
   const loadBrief = () => {
-    const savedBrief = localStorage.getItem(BRIEF_STORAGE_KEY);
-    if (savedBrief) {
-      try {
-        const parsedBrief = JSON.parse(savedBrief);
-        setBrief(parsedBrief);
-      } catch (error) {
-        console.error('Error parsing saved brief:', error);
+    // Only load from localStorage for anonymous users
+    if (!auth.isAuthenticated) {
+      const savedBrief = localStorage.getItem(BRIEF_STORAGE_KEY);
+      if (savedBrief) {
+        try {
+          const parsedBrief = JSON.parse(savedBrief);
+          setBrief(parsedBrief);
+        } catch (error) {
+          console.error('Error parsing saved brief:', error);
+          localStorage.removeItem(BRIEF_STORAGE_KEY);
+        }
+      }
+    }
+    // For logged-in users, brief will be loaded from database (to be implemented later)
+  };
+
+  const updateBrief = (newBrief) => {
+    setBrief(newBrief);
+    // Only save brief to localStorage for anonymous users
+    if (!auth.isAuthenticated) {
+      if (newBrief) {
+        localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(newBrief));
+      } else {
         localStorage.removeItem(BRIEF_STORAGE_KEY);
       }
     }
   };
 
-  const updateBrief = (newBrief) => {
-    setBrief(newBrief);
-    if (newBrief) {
-      localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(newBrief));
-    } else {
-      localStorage.removeItem(BRIEF_STORAGE_KEY);
-    }
-  };
-
   const generateNewBrief = () => {
     setBrief(null);
-    localStorage.removeItem(BRIEF_STORAGE_KEY);
+    // Only remove from localStorage for anonymous users
+    if (!auth.isAuthenticated) {
+      localStorage.removeItem(BRIEF_STORAGE_KEY);
+    }
     return true;
   };
 
@@ -250,31 +260,22 @@ const BriefProvider = ({ children }) => {
 
   const fetchUserBriefs = async () => {
     if (!auth.isAuthenticated || !auth.user) {
+      setSavedBriefs([]);
       return;
     }
     
     try {
-      const userToken = auth.user.accessToken;
+      const userToken = auth.user.idToken || auth.user.id_token;
       
       if (!userToken) {
         console.error("No authentication token available");
+        setSavedBriefs([]);
         return;
       }
       
-      // PLACEHOLDER: API endpoint not yet created
-      // When API is ready, replace this with actual API call
-      console.log("NOTE: get-user-briefs API not implemented yet - using placeholder data");
-      
-      // Temp placeholder data for development
-      const placeholderBriefs = [];
-      setSavedBriefs(placeholderBriefs);
-      
-      /* Uncomment when API is implemented
-      const response = await axios.post(
-        "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-user-briefs",
-        {
-          userId: auth.user.sub
-        },
+      // Use the GET API endpoint as specified
+      const response = await axios.get(
+        `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-briefs?userId=${auth.user.sub}`,
         {
           headers: {
             Authorization: `Bearer ${userToken}`,
@@ -283,14 +284,51 @@ const BriefProvider = ({ children }) => {
         }
       );
       
-      const responseData = JSON.parse(response.data.body);
+      // Parse the response data
+      const responseData = typeof response.data === 'string' 
+        ? JSON.parse(response.data.body || response.data) 
+        : response.data;
       
-      if (responseData.briefs) {
-        setSavedBriefs(responseData.briefs);
+      if (responseData.success && responseData.briefs) {
+        // Make sure we have an array of briefs
+        const briefsArray = Array.isArray(responseData.briefs) ? responseData.briefs : [];
+        
+        // Process each brief to ensure it has the right structure
+        const processedBriefs = briefsArray.map(brief => {
+          // Make sure the brief has the necessary properties for display
+          return {
+            ...brief,
+            // Use title from top level or from briefData.project_title
+            title: brief.title || (brief.briefData?.project_title) || "Untitled Brief",
+            // Ensure briefId is accessible at the top level
+            briefId: brief.briefId || brief.briefData?.briefId || brief.recordId
+          };
+        });
+        
+        setSavedBriefs(processedBriefs);
+        
+        // Load the most recent brief for logged-in users if there's at least one brief
+        if (processedBriefs.length > 0) {
+          // Sort briefs by createdAt or timestamp, most recent first
+          const sortedBriefs = [...processedBriefs].sort((a, b) => {
+            // First check top-level createdAt
+            const dateA = new Date(a.createdAt || a.updatedAt || (a.briefData?.createdAt) || 0);
+            const dateB = new Date(b.createdAt || b.updatedAt || (b.briefData?.createdAt) || 0);
+            return dateB - dateA; // Most recent first
+          });
+          
+          // Load the most recent brief into the current brief state
+          const mostRecentBrief = sortedBriefs[0];
+          setBrief(mostRecentBrief);
+          console.log('Loaded most recent brief:', mostRecentBrief.title);
+        }
+      } else if (responseData.success && responseData.briefs === false) {
+        // No briefs found
+        setSavedBriefs([]);
       } else {
         console.error("Error fetching briefs:", responseData.error);
+        setSavedBriefs([]);
       }
-      */
     } catch (error) {
       console.error("Error fetching user briefs:", error);
       // Set empty array to prevent UI issues

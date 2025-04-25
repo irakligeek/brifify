@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Coins, Loader2, FileIcon } from "lucide-react";
+import { Coins, Loader2, FileIcon, FileText } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
+import UserBriefsList from "./UserBriefsList";
 
 export default function BriefMetadata() {
   const { remainingBriefs, generateNewBrief } = useBrief();
@@ -45,15 +46,14 @@ export default function BriefMetadata() {
 
         {/* My Briefs Section */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-700 text-left">My Briefs</h3>
-          <button
+          {/* <button
             onClick={() => {
               // Clear the brief data
               generateNewBrief();
-              
+
               // Reset the wizard state by setting a flag in localStorage
-              localStorage.setItem('brifify_reset_wizard', 'true');
-              
+              localStorage.setItem("brifify_reset_wizard", "true");
+
               // Force a refresh to ensure the wizard resets
               window.location.reload();
             }}
@@ -62,8 +62,8 @@ export default function BriefMetadata() {
           >
             <FileIcon className="h-4 w-4" />
             <span className="underline">Start New</span>
-          </button>
-          {/* Brief list will be added here later */}
+          </button> */}
+          <UserBriefsList />
         </div>
       </div>
     </Card>

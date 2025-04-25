@@ -29,10 +29,8 @@ import {
 import {
   FileText,
   Edit,
-  RefreshCw,
   FileDown,
   Copy,
-  Check,
   FileIcon,
   Link2,
   Loader2,
@@ -51,16 +49,28 @@ import { useAuth } from "@/context/auth/AuthContext";
 export default function ProjectBrief({ initialData }) {
   const { updateBrief, generateNewBrief, saveBrief } = useBrief();
   const { user, isAuthenticated } = useAuth();
-  const [briefData, setBriefData] = useState({
-    ...initialData,
-    technical_requirements: initialData?.technical_requirements || [],
-    technology_stack: initialData?.technology_stack || [],
-  });
-  const [editData, setEditData] = useState({
-    ...initialData,
-    technical_requirements: initialData?.technical_requirements || [],
-    technology_stack: initialData?.technology_stack || [],
-  });
+  
+  // Process the initial data structure to handle both flat and nested formats
+  const processInitialData = (data) => {
+    // If briefData exists and contains project data, use that as the primary source
+    if (data?.briefData) {
+      return {
+        ...data.briefData,
+        // Include top-level metadata
+        briefId: data.briefId || data.briefData.briefId,
+        title: data.title || data.briefData.project_title,
+        createdAt: data.createdAt || data.briefData.createdAt || data.updatedAt,
+      };
+    }
+    // Otherwise use the flat structure
+    return data;
+  };
+  
+  const processedInitialData = processInitialData(initialData);
+  
+  const [briefData, setBriefData] = useState(processedInitialData);
+  const [editData, setEditData] = useState(processedInitialData);
+  
   const [open, setOpen] = useState(false);
   const [copying, setCopying] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -161,51 +171,86 @@ export default function ProjectBrief({ initialData }) {
 
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
-      <h1 className="text-3xl md:text-4xl pb-8 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent font-heading tracking-tight">
-        ✨ Your Technical Brief Is Ready
-      </h1>
       <Card className="shadow-l pt-0" ref={briefRef}>
         <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 border-b text-left pt-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-slate-700" />
               <CardTitle className="text-slate-800 text-left font-heading">
-                {briefData.project_title}
+                {briefData.project_title || "Untitled Project"}
               </CardTitle>
             </div>
-            <CardDescription className="text-sm font-medium text-slate-500 text-left">
-              Platform: {briefData.platform}
-            </CardDescription>
+            <div className="flex flex-col items-end">
+              <CardDescription className="text-sm font-medium text-slate-500 text-left">
+                Platform: {briefData.platform || "Not specified"}
+              </CardDescription>
+              {briefData.createdAt && (
+                <CardDescription className="text-sm font-medium text-slate-500 text-left">
+                  Created on: {(() => {
+                    const date = new Date(briefData.createdAt);
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    return date.toLocaleDateString('en-US', options);
+                  })()}
+                </CardDescription>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6 pb-2 text-left">
           <div className="space-y-6">
             {Object.entries(briefData).map(([key, value]) => {
-              // Skip empty arrays or undefined/null values
-              if (!value || (Array.isArray(value) && value.length === 0)) return null;
+              // Skip empty arrays, undefined/null values, and metadata
+              if (!value || 
+                  (Array.isArray(value) && value.length === 0) || 
+                  key === 'briefId' || 
+                  key === 'createdAt' || 
+                  key === 'updatedAt' ||
+                  key === 'recordType' || 
+                  key === 'timestamp' ||
+                  key === 'userId' ||
+                  key === 'title') {
+                return null;
+              }
               
               // Format the field name for display
-              const fieldName = key
+              let fieldName = key
                 .split('_')
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                 .join(' ');
+
+              // Format date fields
+              let displayValue = value;
+              if ((key === 'createdAt' || key === 'timestamp') && value) {
+                const date = new Date(value);
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                displayValue = date.toLocaleDateString('en-US', options);
+              }
+
+              // Ensure we're not trying to render an object directly
+              if (typeof displayValue === 'object' && displayValue !== null && !Array.isArray(displayValue)) {
+                return null; // Skip objects that aren't arrays
+              }
 
               return (
                 <div key={key}>
                   <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
                     {fieldName}
                   </h3>
-                  {Array.isArray(value) ? (
+                  {Array.isArray(displayValue) ? (
                     <ul className="list-disc pl-5 space-y-1 text-left">
-                      {value.map((item, index) => (
-                        <li key={index} className="text-slate-700 text-left">
-                          {item}
-                        </li>
-                      ))}
+                      {displayValue.map((item, index) => {
+                        // Ensure we're not rendering objects in the list
+                        const itemStr = typeof item === 'object' ? JSON.stringify(item) : String(item);
+                        return (
+                          <li key={index} className="text-slate-700 text-left">
+                            {itemStr}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="text-slate-700 text-left">
-                      {value}
+                      {String(displayValue)}
                     </p>
                   )}
                 </div>
@@ -289,7 +334,17 @@ export default function ProjectBrief({ initialData }) {
               <div className="grid gap-4 py-4">
                 {Object.entries(editData).map(([key, value]) => {
                   // Skip certain technical fields that shouldn't be edited
-                  if (key === 'briefId' || key === 'createdAt' || key === 'updatedAt') return null;
+                  if (key === 'briefId' || 
+                      key === 'createdAt' || 
+                      key === 'updatedAt' ||
+                      key === 'recordType' ||
+                      key === 'userId' ||
+                      key === 'title') return null;
+                  
+                  // Skip non-editable objects
+                  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    return null;
+                  }
                   
                   // Format the field name for display
                   const fieldName = key

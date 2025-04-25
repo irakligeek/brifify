@@ -18,7 +18,7 @@ export default function Layout({ children }) {
           <Sidebar onOpenChange={setIsSidebarOpen} />
         </div>
         <main className={`
-          min-w-0 p-6 md:mt-24 mt-16
+          min-w-0 p-6 mt-16
           ${!isSidebarOpen ? 'pl-[60px] md:pl-6' : 'pl-6'}
         `}>
           <div className="max-w-3xl mx-auto">
