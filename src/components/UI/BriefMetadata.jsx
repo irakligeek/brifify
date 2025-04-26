@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Coins, Loader2, FileIcon, FileText } from "lucide-react";
+import { Coins, Loader2, FileIcon, FileText, PlusCircle } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 import { useAuth } from "@/context/auth/AuthContext";
 import UserBriefsList from "./UserBriefsList";
@@ -48,7 +48,7 @@ export default function BriefMetadata() {
 
         {/* My Briefs Section */}
         <div className="space-y-3">
-        <button
+          <button
             onClick={() => {
               // Clear the brief data
               generateNewBrief();
@@ -63,10 +63,27 @@ export default function BriefMetadata() {
             disabled:text-gray-400 disabled:cursor-not-allowed 
             pl-1 "
           >
-            <FileIcon className="h-4 w-4" />
-            <span className="text-sm font-medium truncate">Create New</span>
+            <PlusCircle className="h-4 w-4" />
+            <span className="text-sm font-medium truncate">
+              Create New Brief
+            </span>
           </button>
-          {isAuthenticated && <UserBriefsList />}
+
+          {/* Only show the briefs list for authenticated users */}
+          {isAuthenticated && (
+            <>
+              <UserBriefsList />
+            </>
+          )}
+
+          {/* Show message for anonymous users */}
+          {!isAuthenticated && (
+            <div className="text-sm text-gray-500 mt-4">
+              <p className="mb-2">
+                Log in to save and access your briefs across devices.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Card>

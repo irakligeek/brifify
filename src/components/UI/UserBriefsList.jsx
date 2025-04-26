@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useBrief } from "@/context/BriefContext";
 import { Loader2, FileText, Check } from "lucide-react";
+import { useAuth } from "@/context/auth/AuthContext";
 
 export default function UserBriefsList() {
   const { savedBriefs, fetchUserBriefs, brief, updateBrief, getBriefById, isInitializing } = useBrief();
+  const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingBriefId, setLoadingBriefId] = useState(null);
   const [hasTriedFetching, setHasTriedFetching] = useState(false);
@@ -13,6 +15,13 @@ export default function UserBriefsList() {
     
     const loadBriefs = async () => {
       if (!isMounted) return;
+      
+      // If user is not authenticated, don't attempt to load briefs
+      if (!isAuthenticated) {
+        setIsLoading(false);
+        setHasTriedFetching(true);
+        return;
+      }
       
       setIsLoading(true);
       
@@ -38,9 +47,15 @@ export default function UserBriefsList() {
     return () => {
       isMounted = false;
     };
-  }, [isInitializing]); // Re-run when isInitializing changes
+  }, [isInitializing, isAuthenticated]); // Re-run when isInitializing or isAuthenticated changes
 
   const handleBriefClick = async (briefId) => {
+    // Only authenticated users can select briefs from the list
+    if (!isAuthenticated) {
+      console.log("Cannot select brief - user is not authenticated");
+      return;
+    }
+    
     // If the brief is already selected, do nothing
     if (brief && brief.briefId === briefId) {
       console.log("Brief already selected");
@@ -75,6 +90,11 @@ export default function UserBriefsList() {
       setLoadingBriefId(null);
     }
   };
+
+  // If user is not authenticated, don't show any briefs
+  if (!isAuthenticated) {
+    return null;
+  }
 
   // ALWAYS show loading state if:
   // 1. Context is still initializing, OR
@@ -111,7 +131,6 @@ export default function UserBriefsList() {
 
   return (
     <>
-      
       <div className="overflow-auto max-h-64 pr-1 custom-scrollbar">
         <ul className="space-y-2">
           {sortedBriefs.map((item) => {

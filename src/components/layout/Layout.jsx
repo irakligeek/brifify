@@ -8,9 +8,9 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar WILL BE GONE IN THE APP - ONLY IN LANDING PAGE*/}
-      <div className="sticky top-0 !z-50 bg-white border-b px-4 py-4">
+      {/* <div className="sticky top-0 !z-50 bg-white border-b px-4 py-4">
         <NavbarMain />
-      </div>
+      </div> */}
 
       {/* Grid layout for sidebar and main content */}
       <div className="grid md:grid-cols-[256px_1fr] relative">

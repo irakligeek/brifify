@@ -187,6 +187,7 @@ export default function ProjectBrief({ initialData }) {
 
   const handleDeleteBrief = async () => {
     if (!isAuthenticated || !briefData.briefId) {
+      toast.error("You must be logged in to delete briefs");
       return;
     }
     
@@ -225,15 +226,16 @@ export default function ProjectBrief({ initialData }) {
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
       <Card className="shadow-l pt-0" ref={briefRef}>
-        <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 border-b text-left pt-6">
-          <div className="flex items-center justify-between">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 border-b text-left pt-6 ">
+          <div className="flex items-start flex-col justify-start gap-4
+          sm:!flex-row sm:!justify-between sm:!items-center">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-slate-700" />
               <CardTitle className="text-slate-800 text-left font-heading">
                 {briefData.project_title || "Untitled Project"}
               </CardTitle>
             </div>
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col itmes-start
+            sm:!items-end ">
               <CardDescription className="text-sm font-medium text-slate-500 text-left">
                 Platform: {briefData.platform || "Not specified"}
               </CardDescription>
@@ -330,44 +332,48 @@ export default function ProjectBrief({ initialData }) {
               )}
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={shareUrl}
-              className="flex items-center gap-2 rounded-sm w-auto"
-            >
-              {sharing ? (
-                <>
-                  Sharing ...
-                </>
-              ) : (
-                <>
-                  <Link2 className="h-4 w-4" />
-                  Share
-                </>
-              )}
-            </Button>
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                onClick={shareUrl}
+                className="flex items-center gap-2 rounded-sm w-auto"
+              >
+                {sharing ? (
+                  <>
+                    Sharing ...
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4" />
+                    Share
+                  </>
+                )}
+              </Button>
+            )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 justify-center rounded-sm sm:w-auto">
-                  <FileDown className="h-4 w-4" />
-                  Download
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => downloadBrief("PDF")}>
-                  <FileIcon className="h-4 w-4 mr-2" />
-                  Download as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => downloadBrief("DOCX")}>
-                  <FileIcon className="h-4 w-4 mr-2" />
-                  Download as DOCX
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isAuthenticated && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 justify-center rounded-sm sm:w-auto">
+                    <FileDown className="h-4 w-4" />
+                    Download
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => downloadBrief("PDF")}>
+                    <FileIcon className="h-4 w-4 mr-2" />
+                    Download as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => downloadBrief("DOCX")}>
+                    <FileIcon className="h-4 w-4 mr-2" />
+                    Download as DOCX
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col sm:!flex-row sm:items-center">
             {isAuthenticated && (
               <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogTrigger asChild>
@@ -414,6 +420,14 @@ export default function ProjectBrief({ initialData }) {
                 </DialogContent>
               </Dialog>
             )}
+            
+            {/* Display login message for anonymous users */}
+            {!isAuthenticated && (
+              <div className="text-sm text-gray-500 mt-2">
+                <p>Login to edit, download, or share this brief.</p>
+              </div>
+            )}
+            
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button 

@@ -26,7 +26,14 @@ const BriefProvider = ({ children }) => {
 
   useEffect(() => {
     initializeAnonymousUser();
-    loadBrief();
+    
+    // Only load brief from localStorage if user is not authenticated
+    if (!auth.isAuthenticated) {
+      loadBrief();
+    } else {
+      // For authenticated users, clear any previously loaded anonymous brief
+      setBrief(null);
+    }
   }, [auth.isAuthenticated]);
 
   useEffect(() => {
@@ -87,6 +94,12 @@ const BriefProvider = ({ children }) => {
   };
 
   const initializeAnonymousUser = async () => {
+    // Anonymous user is only needed for anonymous sessions
+    if (auth.isAuthenticated) {
+      setIsInitializing(false);
+      return;
+    }
+    
     setIsInitializing(true);
     const savedUser = localStorage.getItem(ANONYMOUS_USER_KEY);
 
@@ -174,7 +187,7 @@ const BriefProvider = ({ children }) => {
   };
 
   const loadBrief = () => {
-    // Only load from localStorage for anonymous users
+    // ONLY load from localStorage for anonymous users
     if (!auth.isAuthenticated) {
       const savedBrief = localStorage.getItem(BRIEF_STORAGE_KEY);
       if (savedBrief) {
@@ -187,7 +200,6 @@ const BriefProvider = ({ children }) => {
         }
       }
     }
-    // For logged-in users, brief will be loaded from database (to be implemented later)
   };
 
   const updateBrief = (newBrief) => {
@@ -307,6 +319,7 @@ const BriefProvider = ({ children }) => {
   };
 
   const fetchUserBriefs = async () => {
+    // Only fetch user briefs for authenticated users
     if (!auth.isAuthenticated || !auth.user) {
       setSavedBriefs([]);
       return;
