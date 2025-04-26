@@ -10,7 +10,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 const dynamo = new DynamoDBClient({});
 const TABLE_NAME = process.env.DYNAMO_TABLE;
 const RECORD_TYPE = "USER_PROFILE";
-const FREE_INITIAL_TOKENS = 3;
+const FREE_INITIAL_TOKENS = 2;
 
 const headers = {
   "Access-Control-Allow-Origin": "*",

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, User, Mail, LogOut } from "lucide-react";
+import { ChevronRight, ChevronLeft, User, Mail, LogOut, LogIn } from "lucide-react";
 import BriefMetadata from "../UI/BriefMetadata";
 import Logo from "../UI/Logo";
 import { useAuth } from "../../context/auth/AuthContext";
 
 export default function Sidebar({ onOpenChange }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, login } = useAuth();
   
   // Check if screen is md or larger and set isOpen accordingly
   useEffect(() => {
@@ -140,7 +140,23 @@ export default function Sidebar({ onOpenChange }) {
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            // Show login button when not authenticated
+            <div className="flex items-center gap-2 py-1">
+              <div className="p-2 flex-shrink-0">
+                <LogIn size={14} className="text-gray-600" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <button 
+                  onClick={login}
+                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
+                  font-medium"
+                >
+                  Login
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Contact info */}
           <div className="flex items-center gap-2 py-1">

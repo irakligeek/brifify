@@ -11,7 +11,7 @@ export default function Questionnaire({
   nextStep,
   isLoading,
 }) {
-  const maxCharacters = 1000;
+  const maxCharacters = 500;
   return (
     <div className="p-6 relative">
       <div className="overflow-hidden">

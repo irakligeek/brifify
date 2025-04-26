@@ -137,6 +137,19 @@ export const handler = async (event) => {
         }),
       };
     }
+    
+    // Check if the last message exceeds the character limit
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.content && lastMessage.content.length > 500) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: "Input too long",
+          message: "Your message exceeds the 500 character limit. Please shorten your input."
+        }),
+      };
+    }
 
     // Get user profile - expected to already exist
     const user = await getUserProfile(userId);
@@ -178,7 +191,6 @@ export const handler = async (event) => {
         threadId = thread.id;
       }
 
-      const lastMessage = messages[messages.length - 1];
       await openai.beta.threads.messages.create(threadId, {
         role: "user",
         content: lastMessage.content,

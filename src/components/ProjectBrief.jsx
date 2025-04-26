@@ -133,6 +133,12 @@ export default function ProjectBrief({ initialData }) {
   };
 
   const downloadBrief = async (format) => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast.error("You must be logged in to download briefs");
+      return;
+    }
+    
     if (format === "PDF") {
       downloadBriefAsPDF(briefData);
     } else if (format === "DOCX") {
@@ -202,6 +208,14 @@ export default function ProjectBrief({ initialData }) {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
+  };
+
+  const handleEditClick = () => {
+    if (!isAuthenticated) {
+      toast.error("You must be logged in to edit briefs");
+      return;
+    }
+    setOpen(true);
   };
 
   if (!briefData) {
@@ -400,15 +414,18 @@ export default function ProjectBrief({ initialData }) {
                 </DialogContent>
               </Dialog>
             )}
-            {isAuthenticated && (
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2 rounded-sm sm:w-auto justify-center">
-                    <Edit className="h-4 w-4" />
-                    Edit Brief
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto text-left">
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="flex items-center gap-2 rounded-sm sm:w-auto justify-center"
+                  onClick={handleEditClick}
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Brief
+                </Button>
+              </DialogTrigger>
+              {isAuthenticated && (
+                <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto text-left">
                   <DialogHeader className="text-left">
                     <DialogTitle className="text-left">
                       Edit Project Brief
@@ -480,8 +497,8 @@ export default function ProjectBrief({ initialData }) {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            )}
+              )}
+            </Dialog>
           </div>
         </CardFooter>
       </Card>
