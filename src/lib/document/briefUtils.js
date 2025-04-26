@@ -216,6 +216,10 @@ export const copyBriefToClipboard = async (briefData) => {
 };
 
 export const shareBrief = async ({ briefData, user, isAuthenticated }) => {
+  if(!isAuthenticated || !user) {
+    return false;
+  }
+
   try {
     // Check if user is authenticated
     if (!isAuthenticated) {
@@ -246,6 +250,7 @@ export const shareBrief = async ({ briefData, user, isAuthenticated }) => {
       {
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${user?.idToken}`
         },
       }
     );

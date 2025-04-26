@@ -59,7 +59,7 @@ export default function ProjectBrief({ initialData }) {
         ...data.briefData,
         // Include top-level metadata
         briefId: data.briefId || data.briefData.briefId,
-        title: data.title || data.briefData.project_title,
+        // title: data.title || data.briefData.project_title,
         createdAt: data.createdAt || data.briefData.createdAt || data.updatedAt,
       };
     }
@@ -176,7 +176,7 @@ export default function ProjectBrief({ initialData }) {
       await shareBrief({
         briefData,
         user,
-        isAuthenticated
+        isAuthenticated,
       });
     } catch (err) {
       console.error('Share failed:', err);
@@ -225,8 +225,8 @@ export default function ProjectBrief({ initialData }) {
 
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
-      <Card className="shadow-l pt-0" ref={briefRef}>
-        <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 border-b text-left pt-6 ">
+      <Card className="pt-0 rounded-md" ref={briefRef}>
+        <CardHeader className="bg-gradient-to-r rounded-t-md from-slate-100 to-slate-50 border-b text-left pt-6 ">
           <div className="flex items-start flex-col justify-start gap-4
           sm:!flex-row sm:!justify-between sm:!items-center">
             <div className="flex items-center gap-2">

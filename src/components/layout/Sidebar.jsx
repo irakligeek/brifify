@@ -105,7 +105,7 @@ export default function Sidebar({ onOpenChange }) {
         {/* Account menu at the bottom with margin-bottom to push it up from bottom edge */}
         <div 
           className={`
-            mt-auto border-t p-4 mb-16 w-full
+            mt-auto border-t p-4 mb-4 w-full
             ${!isOpen ? "!opacity-0 md:!opacity-100" : "!opacity-100"}
             transition-opacity duration-200
           `}
