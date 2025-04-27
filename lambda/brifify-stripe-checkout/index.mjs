@@ -51,8 +51,8 @@ export const handler = async (event) => {
         },
       ],
       mode: 'payment',
-      // Modified URLs to use parameters instead of routes
-      success_url: `${process.env.FRONTEND_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      // Pass email in the success URL so frontend can check for onboarding tokens
+      success_url: `${process.env.FRONTEND_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}${email ? `&email=${encodeURIComponent(email)}` : ''}`,
       cancel_url: `${process.env.FRONTEND_URL}?checkout=cancel`,
       metadata: {
         userId: userId || 'anonymous',

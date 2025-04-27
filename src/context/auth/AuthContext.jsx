@@ -40,6 +40,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Handle auth code in URL automatically
+  useEffect(() => {
+    const handleAuthCode = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authCode = urlParams.get('code');
+      
+      // If there's an auth code in the URL and user is not authenticated yet
+      if (authCode && !oidcAuth.isAuthenticated && !oidcAuth.isLoading) {;
+        try {
+          // Use the signinRedirect method instead - the library will handle the code
+          // automatically since it's already in the URL
+          oidcAuth.signinRedirect({ 
+            redirect_uri: window.location.origin 
+          });
+          
+          // Note: The URL cleanup will happen automatically after authentication is complete
+        } catch (error) {
+          console.error('Error during auto-login:', error);
+        }
+      }
+    };
+    
+    handleAuthCode();
+  }, [oidcAuth.isAuthenticated, oidcAuth.isLoading]);
+
   // Save anonymous user on initial load
   useEffect(() => {
     

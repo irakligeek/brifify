@@ -5,7 +5,7 @@ import { useBrief } from "@/context/BriefContext";
 import { useAuth } from "@/context/auth/AuthContext";
 import UserBriefsList from "./UserBriefsList";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,17 @@ import {
 } from "@/components/ui/dialog";
 
 export default function BriefMetadata() {
-  const { remainingBriefs, generateNewBrief } = useBrief();
+  const { remainingBriefs, generateNewBrief, fetchRemainingBriefs } = useBrief();
   const { isAuthenticated, user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch remaining briefs when authentication status changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchRemainingBriefs();
+    }
+  }, [isAuthenticated, user, fetchRemainingBriefs]);
   
   const handlePurchaseTokens = async (productId) => {
 

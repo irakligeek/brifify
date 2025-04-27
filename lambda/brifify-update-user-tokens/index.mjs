@@ -11,6 +11,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import { randomBytes } from "crypto";
 
 const dynamo = new DynamoDBClient({});
 const lambda = new LambdaClient({});
@@ -19,11 +20,14 @@ const RECORD_TYPE = "USER_PROFILE";
 const CREATE_COGNITO_USER_FUNCTION = process.env.CREATE_COGNITO_USER_FUNCTION || 'brifify-create-cognito-user';
 const FREE_INITIAL_TOKENS = 2; // Default initial tokens for new users
 
-const headers = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "OPTIONS,POST",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+/**
+ * Generates a random onboarding token for password reset flow
+ * @returns {string} - A random hex string to use as onboarding token
+ */
+function generateOnboardingToken() {
+  // Generate a random 24-byte token and convert to hex
+  return randomBytes(24).toString('hex');
+}
 
 /**
  * Updates user tokens in DynamoDB
@@ -32,7 +36,7 @@ const headers = {
  * @param {number} tokens - The tokens to add
  * @returns {Promise<Object|null>} - The updated user or null if update failed
  */
-async function updateUserTokens(userId, email, tokens) {
+async function updateUserTokens(userId, email, tokens, sessionId = null) {
   if (!userId || !email || tokens <= 0) {
     console.error(`Missing required parameters: userId=${userId}, email=${email}, tokens=${tokens}`);
     return null;
@@ -76,10 +80,9 @@ async function updateUserTokens(userId, email, tokens) {
       
       console.log(`Successfully updated token count for user ${userId}: ${currentTokens} -> ${newTokens}`);
       return { ...existingUser, tokens: newTokens };
+
     } else {
-      //... User doesn't exist, create user in Cognito and and then DynamoDB with Cognito user ID
-      console.log(`User ${userId} does not exist, a new user will be created in both Cognito and dynamoDB`);
-      
+      // User doesn't exist, create user in Cognito and then DynamoDB with Cognito user ID
       try {
         // Invoke the brifify-create-cognito-user Lambda to create user in Cognito
         const params = {
@@ -109,6 +112,12 @@ async function updateUserTokens(userId, email, tokens) {
           throw new Error('Invalid response from Cognito user creation');
         }
         
+        // Generate onboarding token and expiration time (15 minutes from now)
+        // const onboardingToken = generateOnboardingToken();
+        const currentTime = new Date();
+        const expirationTime = new Date(currentTime.getTime() + 15 * 60 * 1000); // 15 minutes in milliseconds
+        const expirationTimestamp = Math.floor(expirationTime.getTime() / 1000); // Unix timestamp in seconds
+        
         // Now create the user in DynamoDB with the Cognito user ID
         const timestamp = new Date().toISOString();
         const totalTokens = FREE_INITIAL_TOKENS + tokens; // Initial tokens + additional tokens
@@ -131,7 +140,26 @@ async function updateUserTokens(userId, email, tokens) {
           })
         );
         
-        console.log(`Successfully created new user ${userId} in DynamoDB with ${totalTokens} tokens`);
+        // Create a separate onboarding token record with TTL for automatic deletion after 15 minutes
+        const onboardingRecord = {
+          userId: `ONBOARDING#${sessionId}`,
+          recordType: 'ONBOARDING_TOKEN',
+          cognitoUserId: cognitoUser.userId,
+          email: email,
+          createdAt: timestamp,
+          expiresAt: expirationTimestamp,
+          ttl: expirationTimestamp // DynamoDB TTL attribute for automatic deletion
+        };
+        
+        // Save onboarding record to DynamoDB
+        await dynamo.send(
+          new PutItemCommand({
+            TableName: TABLE_NAME,
+            Item: marshall(onboardingRecord)
+          })
+        );
+        
+        console.log(`Successfully created new user ${cognitoUser.userId} in DynamoDB with ${totalTokens} tokens and onboarding token expiring in 15 minutes`);
         return { ...newUser, tokens: totalTokens };
 
       } catch (createError) {
@@ -151,13 +179,12 @@ export const handler = async (event) => {
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     
     // Extract parameters from the request
-    const { userId, email, tokens } = body;
+    const { userId, email, tokens, sessionId } = body;
     
     // Validate required parameters
     if (!userId || !email || !tokens) {
       return {
         statusCode: 400,
-        headers,
         body: JSON.stringify({ 
           error: 'Missing required parameters', 
           details: 'userId, email, and tokens must be provided' 
@@ -171,7 +198,6 @@ export const handler = async (event) => {
     if (isNaN(tokenAmount) || tokenAmount <= 0) {
       return {
         statusCode: 400,
-        headers,
         body: JSON.stringify({ 
           error: 'Invalid token amount', 
           details: 'tokens must be a positive number' 
@@ -180,12 +206,11 @@ export const handler = async (event) => {
     }
     
     // Update user tokens in database
-    const result = await updateUserTokens(userId, email, tokenAmount);
+    const result = await updateUserTokens(userId, email, tokenAmount, sessionId);
     
     if (!result) {
       return {
         statusCode: 500,
-        headers,
         body: JSON.stringify({
           error: 'Failed to update user tokens',
           details: 'Internal server error occurred while updating tokens'
@@ -195,7 +220,6 @@ export const handler = async (event) => {
     
     return {
       statusCode: 200,
-      headers,
       body: JSON.stringify({ 
         success: true,
         message: 'User tokens updated successfully',
@@ -207,7 +231,6 @@ export const handler = async (event) => {
     console.error('Error processing request:', error);
     return {
       statusCode: 500,
-      headers,
       body: JSON.stringify({ 
         error: 'Internal server error',
         details: error.message

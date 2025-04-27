@@ -55,6 +55,7 @@ export const handler = async (event) => {
       let userId = session.metadata?.userId;
       const tokens = parseInt(session.metadata?.tokens || '0', 10);
       const customerEmail = session.customer_details?.email;
+      const sessionId = session.id;
       
       if (!userId || !customerEmail || tokens <= 0) {
         console.error(`Missing required payment data: userId=${userId}, email=${customerEmail}, tokens=${tokens}`);
@@ -76,7 +77,8 @@ export const handler = async (event) => {
           body: {
             userId,
             email: customerEmail,
-            tokens
+            tokens,
+            sessionId // Include sessionId for logging or further processing
           }
         })
       };
