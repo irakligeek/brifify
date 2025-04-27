@@ -72,14 +72,12 @@ export default function UserBriefsList() {
       if (selectedBrief) {
         // If we already have the brief data, use it directly
         updateBrief(selectedBrief);
-        console.log("Brief loaded from local state:", selectedBrief.title);
       } else {
         // Otherwise fetch it from the backend
         const loadedBrief = await getBriefById(briefId);
         
         if (loadedBrief) {
           updateBrief(loadedBrief);
-          console.log("Brief loaded from API:", loadedBrief.title);
         } else {
           console.error("Failed to load brief with ID:", briefId);
         }

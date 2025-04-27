@@ -1,17 +1,17 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { ClientJS } from 'clientjs';
-import axios from 'axios';
-import { useAuth } from './auth/AuthContext';
+import { createContext, useContext, useState, useEffect } from "react";
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
+import axios from "axios";
+import { useAuth } from "./auth/AuthContext";
 
-const BRIEF_STORAGE_KEY = 'brifify_brief';
-const ANONYMOUS_USER_KEY = 'brifify_anonymous_user';
+const BRIEF_STORAGE_KEY = "brifify_brief";
+const ANONYMOUS_USER_KEY = "brifify_anonymous_user";
 
 const BriefContext = createContext();
 
 const useBrief = () => {
   const context = useContext(BriefContext);
   if (!context) {
-    throw new Error('useBrief must be used within a BriefProvider');
+    throw new Error("useBrief must be used within a BriefProvider");
   }
   return context;
 };
@@ -26,7 +26,7 @@ const BriefProvider = ({ children }) => {
 
   useEffect(() => {
     initializeAnonymousUser();
-    
+
     // Only load brief from localStorage if user is not authenticated
     if (!auth.isAuthenticated) {
       loadBrief();
@@ -40,58 +40,12 @@ const BriefProvider = ({ children }) => {
     if (anonymousUser?.id || (auth.isAuthenticated && auth.user)) {
       fetchRemainingBriefs();
     }
-    
+
     // Fetch saved briefs when user logs in
     if (auth.isAuthenticated && auth.user) {
       fetchUserBriefs();
     }
   }, [anonymousUser?.id, auth.isAuthenticated, auth.user]);
-
-  const getIpAddress = async () => {
-    try {
-      const response = await axios.get('https://api.ipify.org?format=json');
-      return response.data.ip;
-    } catch (error) {
-      console.error('Error fetching IP:', error);
-      return null;
-    }
-  };
-
-  const getScreenInfo = () => ({
-    width: window.screen.width,
-    height: window.screen.height,
-    colorDepth: window.screen.colorDepth,
-    pixelDepth: window.screen.pixelDepth,
-    orientation: window.screen.orientation?.type || 'unknown'
-  });
-
-  const generateDeviceSignature = (client) => {
-    const screenInfo = getScreenInfo();
-    // Focus on device-specific characteristics that are more likely to be consistent across browsers
-    const components = [
-      client.getOS(),
-      client.getOSVersion(),
-      client.getDevice(),
-      client.getCPU(),
-      client.getTimeZone(),
-      `${screenInfo.width}x${screenInfo.height}`,
-      screenInfo.colorDepth,
-      navigator.hardwareConcurrency,
-      navigator.platform
-    ].filter(Boolean);
-
-    return components.join('|');
-  };
-
-  const generateCompositeId = (fingerprint) => {
-    // Create a more stable ID using device characteristics
-    const client = new ClientJS();
-    const os = client.getOS() || 'unknown';
-    const cores = navigator.hardwareConcurrency || '0';
-    const timezone = client.getTimeZone() || 'UTC';
-    const devicePart = `${os}_${cores}_${timezone}`.replace(/\s+/g, '');
-    return `${devicePart}_${fingerprint}`;
-  };
 
   const initializeAnonymousUser = async () => {
     // Anonymous user is only needed for anonymous sessions
@@ -99,49 +53,25 @@ const BriefProvider = ({ children }) => {
       setIsInitializing(false);
       return;
     }
-    
+
     setIsInitializing(true);
     const savedUser = localStorage.getItem(ANONYMOUS_USER_KEY);
 
     if (savedUser) {
       try {
-        const client = new ClientJS();
-        const currentDeviceSignature = generateDeviceSignature(client);
-        const ipAddress = await getIpAddress();
-        const screenInfo = getScreenInfo();
-        const fingerprint = client.getFingerprint();
-        const compositeId = generateCompositeId(fingerprint);
+        const parsedUser = JSON.parse(savedUser);
+        // Update the last seen timestamp
+        parsedUser.lastSeen = new Date().toISOString();
 
-        const updatedUser = {
-          id: compositeId,
-          fingerprint: fingerprint,
-          deviceSignature: currentDeviceSignature,
-          ipAddress,
-          lastSeen: new Date().toISOString(),
-          // Device information
-          browser: client.getBrowser(),
-          browserVersion: client.getBrowserVersion(),
-          os: client.getOS(),
-          osVersion: client.getOSVersion(),
-          device: client.getDevice(),
-          engine: client.getEngine(),
-          cpu: client.getCPU(),
-          screen: screenInfo,
-          timezone: client.getTimeZone(),
-          language: client.getLanguage(),
-          platform: navigator.platform,
-          vendor: navigator.vendor,
-          cores: navigator.hardwareConcurrency,
-          memory: navigator.deviceMemory,
-          connectionType: navigator.connection?.effectiveType
-        };
+        // Save the updated user data
+        localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(parsedUser));
+        setAnonymousUser(parsedUser);
 
-        localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(updatedUser));
-        
-        setAnonymousUser(updatedUser);
+        // Ensure user exists in backend even if we loaded from localStorage
+        await ensureUserExistsInBackend(parsedUser);
       } catch (error) {
-        console.error('Error parsing saved anonymous user:', error);
-        createNewAnonymousUser();
+        console.error("Error parsing saved anonymous user:", error);
+        await createNewAnonymousUser();
       }
     } else {
       await createNewAnonymousUser();
@@ -150,40 +80,138 @@ const BriefProvider = ({ children }) => {
   };
 
   const createNewAnonymousUser = async () => {
-    const client = new ClientJS();
-    const deviceSignature = generateDeviceSignature(client);
-    const ipAddress = await getIpAddress();
-    const screenInfo = getScreenInfo();
-    const fingerprint = client.getFingerprint();
-    const compositeId = generateCompositeId(fingerprint);
+    try {
+      // Initialize the FingerprintJS agent
+      const fpPromise = FingerprintJS.load();
 
-    const user = {
-      id: compositeId,
-      fingerprint: fingerprint,
-      deviceSignature,
-      ipAddress,
-      createdAt: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-      // Device information
-      browser: client.getBrowser(),
-      browserVersion: client.getBrowserVersion(),
-      os: client.getOS(),
-      osVersion: client.getOSVersion(),
-      device: client.getDevice(),
-      engine: client.getEngine(),
-      cpu: client.getCPU(),
-      screen: screenInfo,
-      timezone: client.getTimeZone(),
-      language: client.getLanguage(),
-      platform: navigator.platform,
-      vendor: navigator.vendor,
-      cores: navigator.hardwareConcurrency,
-      memory: navigator.deviceMemory,
-      connectionType: navigator.connection?.effectiveType
-    };
+      // Get the visitor identifier
+      const fp = await fpPromise;
+      const result = await fp.get();
 
-    localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(user));
-    setAnonymousUser(user);
+      // This is the visitor identifier:
+      const visitorId = result.visitorId;
+
+      // Create user data with FingerprintJS result
+      const user = {
+        id: visitorId,
+        fingerprint: visitorId,
+        visitorId: visitorId,
+        createdAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+        // Device information from navigator
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        vendor: navigator.vendor,
+        language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+
+      localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(user));
+      setAnonymousUser(user);
+
+      // Call to create the user in the backend if it doesn't exist yet
+      await createAnonymousUserInBackend(user);
+
+      return user;
+    } catch (error) {
+      console.error("Error creating anonymous user with FingerprintJS:", error);
+      // Fallback to simpler identification if FingerprintJS fails
+      const fallbackId = `fb-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 15)}`;
+      const fallbackUser = {
+        id: fallbackId,
+        fingerprint: fallbackId,
+        createdAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+        isFallback: true,
+      };
+
+      localStorage.setItem(ANONYMOUS_USER_KEY, JSON.stringify(fallbackUser));
+      setAnonymousUser(fallbackUser);
+
+      // Try to create fallback user in backend
+      await createAnonymousUserInBackend(fallbackUser);
+
+      return fallbackUser;
+    }
+  };
+
+  const createAnonymousUserInBackend = async (user) => {
+    try {
+      // Make an API call to create the user in the backend with only essential data
+      const response = await axios.post(
+        `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/save-user`,
+        {
+          userId: user.id,
+          isAnonymous: true,
+          createdAt: user.createdAt,
+          lastSeen: user.lastSeen,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.body) {
+        const data = JSON.parse(response.data.body);
+
+        if (data.success) {
+          // Now that we've confirmed the user is created in the backend,
+          // we can safely fetch the remaining briefs
+          await fetchRemainingBriefs();
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error creating anonymous user in backend:", error);
+      return false;
+    }
+  };
+
+  const ensureUserExistsInBackend = async (user) => {
+    try {
+      // First check if the user exists by trying to fetch their token count
+      const checkResponse = await axios.post(
+        `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-ramaining-tokens`,
+        {
+          userId: user.id,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Parse the response
+      const checkData =
+        checkResponse.data && checkResponse.data.body
+          ? JSON.parse(checkResponse.data.body)
+          : {};
+
+      // If we got an error response with "User not found", we need to create the user
+      if (checkData.error && checkData.error.includes("User not found")) {
+        // Create the user in the backend
+        return await createAnonymousUserInBackend(user);
+      } else if (checkData.remainingBriefs !== undefined) {
+        // User already exists and we have the token count
+        setRemainingBriefs(checkData.remainingBriefs);
+        return true;
+      } else {
+        // Something else went wrong, try creating the user
+        return await createAnonymousUserInBackend(user);
+      }
+    } catch (error) {
+      console.error("Error ensuring user exists in backend:", error);
+
+      // If there was an error, try to create the user
+      return await createAnonymousUserInBackend(user);
+    }
   };
 
   const loadBrief = () => {
@@ -195,7 +223,7 @@ const BriefProvider = ({ children }) => {
           const parsedBrief = JSON.parse(savedBrief);
           setBrief(parsedBrief);
         } catch (error) {
-          console.error('Error parsing saved brief:', error);
+          console.error("Error parsing saved brief:", error);
           localStorage.removeItem(BRIEF_STORAGE_KEY);
         }
       }
@@ -224,15 +252,14 @@ const BriefProvider = ({ children }) => {
   };
 
   const saveBrief = async (briefData) => {
-
     if (!auth.isAuthenticated || !auth.user) {
       return null;
     }
-    
+
     try {
       // Changed from accessToken to idToken or use the id_token directly
       const userToken = auth.user.idToken || auth.user.id_token;
-      
+
       if (!userToken) {
         console.error("No authentication token available");
         return null;
@@ -248,14 +275,13 @@ const BriefProvider = ({ children }) => {
         {
           headers: {
             Authorization: `Bearer ${userToken}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
         }
       );
-    
-      
+
       const responseData = JSON.parse(response.data.body);
-      
+
       if (responseData.success) {
         // Refresh the user's briefs list
         fetchUserBriefs();
@@ -274,10 +300,10 @@ const BriefProvider = ({ children }) => {
     if (!auth.isAuthenticated || !auth.user) {
       return { success: false, error: "User not authenticated" };
     }
-    
+
     try {
       const userToken = auth.user.idToken || auth.user.id_token;
-      
+
       if (!userToken) {
         console.error("No authentication token available");
         return { success: false, error: "No authentication token available" };
@@ -288,17 +314,19 @@ const BriefProvider = ({ children }) => {
         {
           headers: {
             Authorization: `Bearer ${userToken}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           data: {
             userId: auth.user.sub,
-            briefId
-          }
+            briefId,
+          },
         }
       );
-      
-      const responseData = response.data.body ? JSON.parse(response.data.body) : response.data;
-      
+
+      const responseData = response.data.body
+        ? JSON.parse(response.data.body)
+        : response.data;
+
       if (responseData.success) {
         // Refresh the user's briefs list after successful deletion
         await fetchUserBriefs();
@@ -310,11 +338,17 @@ const BriefProvider = ({ children }) => {
         return responseData;
       } else {
         console.error("Error deleting brief:", responseData.error);
-        return { success: false, error: responseData.error || "Failed to delete brief" };
+        return {
+          success: false,
+          error: responseData.error || "Failed to delete brief",
+        };
       }
     } catch (error) {
       console.error("Error deleting brief:", error);
-      return { success: false, error: error.message || "Failed to delete brief" };
+      return {
+        success: false,
+        error: error.message || "Failed to delete brief",
+      };
     }
   };
 
@@ -324,16 +358,16 @@ const BriefProvider = ({ children }) => {
       setSavedBriefs([]);
       return;
     }
-    
+
     try {
       const userToken = auth.user.idToken || auth.user.id_token;
-      
+
       if (!userToken) {
         console.error("No authentication token available");
         setSavedBriefs([]);
         return;
       }
-      
+
       // Use the GET API endpoint as specified
       const response = await axios.get(
         `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-briefs?userId=${auth.user.sub}`,
@@ -344,30 +378,35 @@ const BriefProvider = ({ children }) => {
           },
         }
       );
-      
+
       // Parse the response data
-      const responseData = typeof response.data === 'string' 
-        ? JSON.parse(response.data.body || response.data) 
-        : response.data;
-      
+      const responseData =
+        typeof response.data === "string"
+          ? JSON.parse(response.data.body || response.data)
+          : response.data;
+
       if (responseData.success && responseData.briefs) {
         // Make sure we have an array of briefs
-        const briefsArray = Array.isArray(responseData.briefs) ? responseData.briefs : [];
-        
+        const briefsArray = Array.isArray(responseData.briefs)
+          ? responseData.briefs
+          : [];
+
         // Process each brief to ensure it has the right structure
-        const processedBriefs = briefsArray.map(brief => {
+        const processedBriefs = briefsArray.map((brief) => {
           // Make sure the brief has the necessary properties for display
           return {
             ...brief,
             // Use title from top level or from briefData.project_title
-            title: brief.title || (brief.briefData?.project_title) || "Untitled Brief",
+            title:
+              brief.title || brief.briefData?.project_title || "Untitled Brief",
             // Ensure briefId is accessible at the top level
-            briefId: brief.briefId || brief.briefData?.briefId || brief.recordId
+            briefId:
+              brief.briefId || brief.briefData?.briefId || brief.recordId,
           };
         });
-        
+
         setSavedBriefs(processedBriefs);
-        
+
         // We no longer automatically load the most recent brief
         // This allows the questionnaire wizard to be shown by default
       } else if (responseData.success && responseData.briefs === false) {
@@ -388,51 +427,25 @@ const BriefProvider = ({ children }) => {
     if (!auth.isAuthenticated || !auth.user) {
       return null;
     }
-    
+
     try {
       const userToken = auth.user.accessToken;
-      
+
       if (!userToken) {
         console.error("No authentication token available");
         return null;
       }
-      
+
       // PLACEHOLDER: API endpoint not yet created
       // When API is ready, replace this with actual API call
-      console.log("NOTE: get-brief API not implemented yet - using placeholder data");
-      
+
       // Use the currently loaded brief as a fallback if IDs match
       if (brief && brief.briefId === briefId) {
         return brief;
       }
-      
+
       // Return null since API doesn't exist yet
       return null;
-      
-      /* Uncomment when API is implemented
-      const response = await axios.post(
-        "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-brief",
-        {
-          userId: auth.user.sub,
-          briefId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      
-      const responseData = JSON.parse(response.data.body);
-      
-      if (responseData.brief) {
-        return responseData.brief;
-      } else {
-        console.error("Error fetching brief:", responseData.error);
-        return null;
-      }
-      */
     } catch (error) {
       console.error(`Error fetching brief ${briefId}:`, error);
       return null;
@@ -441,17 +454,17 @@ const BriefProvider = ({ children }) => {
 
   const fetchRemainingBriefs = async () => {
     try {
-      // Determine which user data to send based on authentication status
-      const userData = auth.isAuthenticated && auth.user 
-        ? { 
-            userId: auth.user.sub,
-            sub: auth.user.sub,
-            email: auth.user.email,
-            // cognito_groups: user['cognito:groups'],
-            // email_verified: user.email_verified
-          }
-        : { userId: anonymousUser?.id };
-      
+      // Don't attempt to fetch if we don't have a user ID
+      if (!auth.isAuthenticated && !anonymousUser?.id) {
+        return;
+      }
+
+      // Only send userId as that's all the backend needs
+      const userData = {
+        userId:
+          auth.isAuthenticated && auth.user ? auth.user.sub : anonymousUser?.id,
+      };
+
       const response = await axios.post(
         `https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-ramaining-tokens`,
         userData,
@@ -461,28 +474,67 @@ const BriefProvider = ({ children }) => {
           },
         }
       );
+
+      if (!response.data || !response.data.body) {
+        console.error(
+          "Invalid response when fetching remaining briefs:",
+          response
+        );
+        return;
+      }
+
       const data = JSON.parse(response.data.body);
-      setRemainingBriefs(data.remainingBriefs);
+
+      if (data && typeof data.remainingBriefs !== "undefined") {
+        setRemainingBriefs(data.remainingBriefs);
+      } else if (data && data.error && data.error.includes("User not found")) {
+        // If user not found, try to create the user first before giving up
+        if (!auth.isAuthenticated && anonymousUser) {
+          // For anonymous users, try to create the user in the backend
+          await createAnonymousUserInBackend(anonymousUser);
+
+          // Don't try to fetch tokens again here, createAnonymousUserInBackend will do that
+        } else {
+          console.error(
+            "User not found and unable to create user automatically"
+          );
+        }
+      } else {
+        console.error("No remainingBriefs in response:", data);
+      }
     } catch (error) {
-      console.error('Error fetching remaining briefs:', error);
+      console.error("Error fetching remaining briefs:", error);
+
+      // If we get a 404 error, it might mean the user doesn't exist in the backend
+      if (
+        error.response &&
+        (error.response.status === 404 || error.response.status === 400)
+      ) {
+        if (!auth.isAuthenticated && anonymousUser) {
+          // For anonymous users, try to create the user in the backend
+          await createAnonymousUserInBackend(anonymousUser);
+        }
+      }
     }
   };
 
   return (
-    <BriefContext.Provider value={{
-      brief, 
-      updateBrief, 
-      generateNewBrief,
-      anonymousUser,
-      isInitializing,
-      remainingBriefs,
-      fetchRemainingBriefs,
-      saveBrief,
-      deleteBrief,
-      savedBriefs,
-      fetchUserBriefs,
-      getBriefById
-    }}>
+    <BriefContext.Provider
+      value={{
+        brief,
+        updateBrief,
+        generateNewBrief,
+        anonymousUser,
+        isInitializing,
+        remainingBriefs,
+        fetchRemainingBriefs,
+        saveBrief,
+        deleteBrief,
+        savedBriefs,
+        fetchUserBriefs,
+        getBriefById,
+      }}
+    >
       {children}
     </BriefContext.Provider>
   );

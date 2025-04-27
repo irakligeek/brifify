@@ -18,7 +18,6 @@ export function cn(...inputs) {
  */
 export const handleUserOnboarding = async (onboardingData) => {
   if (!onboardingData || !onboardingData.needsOnboarding) {
-    console.log("No onboarding needed or missing data", onboardingData);
     return false;
   }
   

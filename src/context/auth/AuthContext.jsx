@@ -32,7 +32,6 @@ export const AuthProvider = ({ children }) => {
           },
         }
       );
-      // console.log('User data saved:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error saving user data:', error);
@@ -85,8 +84,6 @@ export const AuthProvider = ({ children }) => {
 
   // Update user data when auth state changes
   useEffect(() => {
-    // console.log("Auth state changed:", oidcAuth.user);
-
     if (oidcAuth.isLoading) {
       setIsLoading(true);
       return;

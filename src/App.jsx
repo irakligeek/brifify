@@ -104,7 +104,6 @@ function App() {
     const storedData = localStorage.getItem('brifify_onboarding_data');
     if (storedData) {
       try {
-        console.log("Found onboarding data in localStorage check");
         const parsedData = JSON.parse(storedData);
         setOnboardingData(parsedData);
         setSessionVerified(true);

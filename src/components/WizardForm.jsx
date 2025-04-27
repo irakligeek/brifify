@@ -198,11 +198,9 @@ export default function WizardForm() {
                 if (saveResult && saveResult.success) {
                   toast.success("Brief saved successfully!");
                 } else {
-                  console.error("Error saving brief");
                   toast.error("Failed to save brief. Please try again.");
                 }
               } catch (error) {
-                console.error("Error saving brief:", error);
                 toast.error("Failed to save brief. Please try again.");
               }
             }
@@ -211,7 +209,6 @@ export default function WizardForm() {
             fetchRemainingBriefs();
           }
         } catch (error) {
-          console.error("Error generating brief:", error);
           if (error.response?.status === 429) {
             toast.error(
               "You've reached the free brief limit. Get more tokens to continue!"
@@ -236,7 +233,6 @@ export default function WizardForm() {
       ]);
       setCurrentStep((prev) => prev + 1);
     } catch (error) {
-      console.error("Error fetching next question:", error);
       if (error.response?.status === 429) {
         toast.error(
           "You've reached the free brief limit. Get more tokens to continue!"
