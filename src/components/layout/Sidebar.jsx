@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, User, Mail, LogOut, LogIn } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronLeft,
+  User,
+  Mail,
+  LogOut,
+  LogIn,
+} from "lucide-react";
 import BriefMetadata from "../UI/BriefMetadata";
 import Logo from "../UI/Logo";
 import { useAuth } from "../../context/auth/AuthContext";
@@ -7,7 +14,7 @@ import { useAuth } from "../../context/auth/AuthContext";
 export default function Sidebar({ onOpenChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, isAuthenticated, logout, login } = useAuth();
-  
+
   // Check if screen is md or larger and set isOpen accordingly
   useEffect(() => {
     const checkScreenSize = () => {
@@ -18,15 +25,15 @@ export default function Sidebar({ onOpenChange }) {
         setIsOpen(false);
       }
     };
-    
+
     // Initial check
     checkScreenSize();
-    
+
     // Add resize listener
-    window.addEventListener('resize', checkScreenSize);
-    
+    window.addEventListener("resize", checkScreenSize);
+
     // Cleanup
-    return () => window.removeEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   useEffect(() => {
@@ -45,45 +52,32 @@ export default function Sidebar({ onOpenChange }) {
         `}
       >
         {/* Logo at the top */}
-        <div className={`px-8 py-3 mt-8 ${!isOpen ? 'hidden md:flex' : 'flex'}`}>
+        <div
+          className={`px-8 py-3 mt-8 ${!isOpen ? "hidden md:flex" : "flex"}`}
+        >
           <Logo />
         </div>
 
         {/* Toggle button container with proper spacing */}
-        <div className="h-14 relative md:hidden">
-          <div
-            className={`
-            absolute top-4 w-6 h-6
-            ${isOpen ? "right-4" : "left-1/2 -translate-x-1/2"}
-          `}
-          >
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="!z-[100] p-1"
-              aria-label="Toggle sidebar"
-            >
-              <div className="flex">
-                {isOpen ? (
-                  <>
-                    <ChevronLeft
-                      size={18}
-                      strokeWidth={2.5}
-                      className="text-gray-600 -mr-3"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ChevronRight
-                      size={18}
-                      strokeWidth={2.5}
-                      className="text-gray-600 -mr-3"
-                    />
-                  </>
-                )}
-              </div>
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`md:!hidden absolute top-6 z-10 h-fit flex justify-center items-center
+              ${isOpen ? "right-4" : "left-[13px]"}`}
+        >
+          {isOpen ? (
+            <ChevronLeft
+              size={18}
+              strokeWidth={2.5}
+              className="text-gray-600"
+            />
+          ) : (
+            <ChevronRight
+              size={18}
+              strokeWidth={2.5}
+              className="text-gray-600"
+            />
+          )}
+        </button>
 
         {/* Content container - reduced height to make room for account menu */}
         <div
@@ -103,7 +97,7 @@ export default function Sidebar({ onOpenChange }) {
         </div>
 
         {/* Account menu at the bottom with margin-bottom to push it up from bottom edge */}
-        <div 
+        <div
           className={`
             mt-auto border-t p-4 mb-4 w-full
             ${!isOpen ? "!opacity-0 md:!opacity-100" : "!opacity-100"}
@@ -131,7 +125,7 @@ export default function Sidebar({ onOpenChange }) {
                 <LogOut size={14} className="text-gray-600" />
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <button 
+                <button
                   onClick={logout}
                   className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
                   font-medium"
@@ -147,7 +141,7 @@ export default function Sidebar({ onOpenChange }) {
                 <LogIn size={14} className="text-gray-600" />
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <button 
+                <button
                   onClick={login}
                   className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
                   font-medium"
@@ -164,8 +158,8 @@ export default function Sidebar({ onOpenChange }) {
               <Mail size={14} className="text-gray-600" />
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <a 
-                href="mailto:irakligeek@gmail.com" 
+              <a
+                href="mailto:irakligeek@gmail.com"
                 className="text-sm !text-gray-600 truncate block "
               >
                 Contact
