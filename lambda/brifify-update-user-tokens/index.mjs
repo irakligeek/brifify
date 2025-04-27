@@ -10,10 +10,14 @@ import {
   UpdateItemCommand
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const dynamo = new DynamoDBClient({});
+const lambda = new LambdaClient({});
 const TABLE_NAME = process.env.DYNAMO_TABLE;
 const RECORD_TYPE = "USER_PROFILE";
+const CREATE_COGNITO_USER_FUNCTION = process.env.CREATE_COGNITO_USER_FUNCTION || 'brifify-create-cognito-user';
+const FREE_INITIAL_TOKENS = 2; // Default initial tokens for new users
 
 const headers = {
   "Access-Control-Allow-Origin": "*",
@@ -75,9 +79,65 @@ async function updateUserTokens(userId, email, tokens) {
     } else {
       //... User doesn't exist, create user in Cognito and and then DynamoDB with Cognito user ID
       console.log(`User ${userId} does not exist, a new user will be created in both Cognito and dynamoDB`);
+      
+      try {
+        // Invoke the brifify-create-cognito-user Lambda to create user in Cognito
+        const params = {
+          FunctionName: CREATE_COGNITO_USER_FUNCTION,
+          InvocationType: 'RequestResponse', // Synchronous invocation
+          // Pass email directly in the event object
+          Payload: JSON.stringify({
+            email: email
+          })
+        };
+        
+        // Call the Lambda function
+        const response = await lambda.send(new InvokeCommand(params));
+        const payload = Buffer.from(response.Payload).toString('utf-8');
+        const result = JSON.parse(payload);
+        
+        if (result.statusCode !== 200) {
+          console.error('Error creating Cognito user:', result);
+          throw new Error(`Failed to create Cognito user: ${result.body?.error || 'Unknown error'}`);
+        }
+        
+        // Parse response body
+        const cognitoResponse = JSON.parse(result.body);
+        const cognitoUser = cognitoResponse.user;
+        
+        if (!cognitoUser || !cognitoUser.userId) {
+          throw new Error('Invalid response from Cognito user creation');
+        }
+        
+        // Now create the user in DynamoDB with the Cognito user ID
+        const timestamp = new Date().toISOString();
+        const totalTokens = FREE_INITIAL_TOKENS + tokens; // Initial tokens + additional tokens
+        
+        const newUser = {
+          userId: cognitoUser.userId, 
+          recordType: RECORD_TYPE,
+          email: email,
+          isAnonymous: false, // This is now a registered Cognito user
+          tokens: totalTokens,
+          createdAt: timestamp,
+          lastUpdated: timestamp
+        };
+        
+        // Save to DynamoDB
+        await dynamo.send(
+          new PutItemCommand({
+            TableName: TABLE_NAME,
+            Item: marshall(newUser)
+          })
+        );
+        
+        console.log(`Successfully created new user ${userId} in DynamoDB with ${totalTokens} tokens`);
+        return { ...newUser, tokens: totalTokens };
 
-      
-      
+      } catch (createError) {
+        console.error("Error creating user:", createError);
+        throw createError; // Rethrow to be handled by the main handler
+      }
     }
   } catch (error) {
     console.error("Error updating user tokens:", error);
