@@ -19,8 +19,6 @@ export default function BriefMetadata() {
   const { isAuthenticated, user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // console.log("user_____:", user);
   
   const handlePurchaseTokens = async (productId) => {
 

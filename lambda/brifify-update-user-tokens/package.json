@@ -1,0 +1,13 @@
+{
+  "name": "brifify-update-user-tokens",
+  "version": "1.0.0",
+  "description": "Lambda function to update user tokens in DynamoDB",
+  "main": "index.mjs",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.360.0",
+    "@aws-sdk/util-dynamodb": "^3.360.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
