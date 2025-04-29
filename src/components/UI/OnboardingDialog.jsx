@@ -51,12 +51,11 @@ export const OnboardingDialog = ({ isOpen, onClose, email, expiresAt }) => {
     return `${cognitoDomain}/login?client_id=${clientId}&response_type=code&scope=email+openid+phone&redirect_uri=${redirectUri}`;
   };
 
-  // Handle login button click - open Cognito in a new tab
+  // Handle login button click - open Cognito in a new tab but don't close dialog
   const handleLoginClick = () => {
     // Open the Cognito login URL in a new tab
     window.open(getCognitoLoginUrl(), "_blank");
-    // Close the dialog
-    onClose();
+    // Don't close the dialog - remove the onClose() call
   };
 
   // Check if the timestamp is valid (it should be a future date)
@@ -77,10 +76,10 @@ export const OnboardingDialog = ({ isOpen, onClose, email, expiresAt }) => {
       >
         <DialogHeader>
           <DialogTitle className="font-black mb-2">
-            Welcome to Brifify!
+            Thank You for Your Purchase!
           </DialogTitle>
           <DialogDescription>
-            Thank you for your purchase. An account has been created for you.
+            Your brief tokens have been added to your account.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,7 +107,7 @@ export const OnboardingDialog = ({ isOpen, onClose, email, expiresAt }) => {
             <li>You'll be prompted to create a new password</li>
             <li>
               Once you've set your new password, you'll be redirected back to
-              Brifify where you can login use your new account.
+              Brifify where you can login and use your new account.
             </li>
           </ol>
 

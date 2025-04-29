@@ -5,7 +5,8 @@
  */
 import {
   CognitoIdentityProviderClient,
-  AdminCreateUserCommand
+  AdminCreateUserCommand,
+  ListUsersCommand
 } from "@aws-sdk/client-cognito-identity-provider";
 import { randomBytes } from "crypto";
 
@@ -14,15 +15,7 @@ const cognito = new CognitoIdentityProviderClient({});
 
 // Environment variables
 const USER_POOL_ID = process.env.USER_POOL_ID;
-const CLIENT_ID = process.env.CLIENT_ID;
 const DEFAULT_PASSWORD_LENGTH = 8;
-
-// CORS headers
-// const headers = {
-//   "Access-Control-Allow-Origin": "*",
-//   "Access-Control-Allow-Methods": "OPTIONS,POST",
-//   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-// };
 
 /**
  * Generates a secure temporary password
@@ -56,6 +49,44 @@ function generateTemporaryPassword(length = DEFAULT_PASSWORD_LENGTH) {
   
   // Shuffle the password to avoid predictable pattern
   return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+/**
+ * Checks if a user with the given email already exists in the Cognito user pool
+ * @param {string} email - User's email address to check
+ * @returns {Promise<Object|null>} - Returns user object if found, null otherwise
+ */
+async function checkUserExists(email) {
+  if (!email) {
+    throw new Error("Email is required for checking user existence");
+  }
+  
+  try {
+    const response = await cognito.send(
+      new ListUsersCommand({
+        UserPoolId: USER_POOL_ID,
+        Filter: `email = "${email}"`,
+        Limit: 1
+      })
+    );
+    
+    if (response.Users && response.Users.length > 0) {
+      const user = response.Users[0];
+      const subAttribute = user.Attributes.find(attr => attr.Name === "sub");
+      const userId = subAttribute ? subAttribute.Value : null;
+      
+      return {
+        userId,
+        email,
+        userExists: true
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error checking if user exists:", error);
+    throw error;
+  }
 }
 
 /**
@@ -130,11 +161,28 @@ export const handler = async (event) => {
       };
     }
     
+    // Check if user already exists
+    const existingUser = await checkUserExists(email);
+    if (existingUser) {
+      return {
+        statusCode: 200, // 200 OK - Request succeeded but no new resource created
+        body: JSON.stringify({ 
+          success: true,
+          message: 'User already exists in Cognito',
+          user: {
+            userId: existingUser.userId,
+            email: existingUser.email,
+            userExists: true
+          }
+        })
+      };
+    }
+    
     // Create the user in Cognito
     const result = await createCognitoUser(email);
     
     return {
-      statusCode: 200,
+      statusCode: 201, // 201 Created - Resource successfully created
       body: JSON.stringify({ 
         success: true,
         message: 'User created successfully in Cognito',
@@ -169,4 +217,4 @@ export const handler = async (event) => {
       })
     };
   }
-};
+}

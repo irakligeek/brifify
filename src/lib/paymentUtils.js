@@ -71,6 +71,7 @@ export const checkUserOnboarding = async (
           cognitoUserId: data.cognitoUserId,
           expiresAt: data.expiresAt,
           email: data.email,
+          sessionId: sessionId, // Add sessionId to onboarding data for tracking
         };
       }
     }
@@ -127,7 +128,10 @@ export const handleSuccessfulPayment = async (sessionId, isAuthenticated) => {
         );
 
         // Create result with full onboarding data if needed
-        let result = { isValid: true };
+        let result = { 
+          isValid: true,
+          sessionData: sessionData // Include the full session data in the result
+        };
 
         if (onboardingStatus?.needsOnboarding) {
           // User needs onboarding - call our handler function

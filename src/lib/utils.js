@@ -14,11 +14,17 @@ export function cn(...inputs) {
  * @param {string} onboardingData.cognitoUserId - The Cognito user ID
  * @param {number} onboardingData.expiresAt - The expiration timestamp
  * @param {string} onboardingData.email - The user's email
+ * @param {string} onboardingData.sessionId - The Stripe session ID
  * @returns {Promise<boolean>} - Whether onboarding was successful
  */
 export const handleUserOnboarding = async (onboardingData) => {
   if (!onboardingData || !onboardingData.needsOnboarding) {
     return false;
+  }
+  
+  // Store current session ID in localStorage for validation
+  if (onboardingData.sessionId) {
+    localStorage.setItem("brifify_current_session", onboardingData.sessionId);
   }
   
   // Store onboarding data in localStorage without redirecting
