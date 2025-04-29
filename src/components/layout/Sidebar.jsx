@@ -1,19 +1,12 @@
 import { useState, useEffect } from "react";
-import {
-  ChevronRight,
-  ChevronLeft,
-  User,
-  Mail,
-  LogOut,
-  LogIn,
-} from "lucide-react";
-import BriefMetadata from "../UI/BriefMetadata";
 import Logo from "../UI/Logo";
-import { useAuth } from "../../context/auth/AuthContext";
+import BriefMetadata from "../UI/BriefMetadata";
+import UserMenu from "../UI/UserMenu";
+import ContactMenu from "../UI/ContactMenu";
+import SidebarToggle from "../UI/SidebarToggle";
 
 export default function Sidebar({ onOpenChange }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, logout, login } = useAuth();
 
   // Check if screen is md or larger and set isOpen accordingly
   useEffect(() => {
@@ -40,6 +33,8 @@ export default function Sidebar({ onOpenChange }) {
     onOpenChange?.(isOpen);
   }, [isOpen, onOpenChange]);
 
+  const toggleSidebar = () => setIsOpen(!isOpen);
+
   return (
     <>
       {/* Sidebar */}
@@ -58,28 +53,10 @@ export default function Sidebar({ onOpenChange }) {
           <Logo />
         </div>
 
-        {/* Toggle button container with proper spacing */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className={`md:!hidden absolute top-6 z-10 h-fit flex justify-center items-center
-              ${isOpen ? "right-4" : "left-[13px]"}`}
-        >
-          {isOpen ? (
-            <ChevronLeft
-              size={18}
-              strokeWidth={2.5}
-              className="text-gray-600"
-            />
-          ) : (
-            <ChevronRight
-              size={18}
-              strokeWidth={2.5}
-              className="text-gray-600"
-            />
-          )}
-        </button>
+        {/* Toggle button */}
+        <SidebarToggle isOpen={isOpen} toggleSidebar={toggleSidebar} />
 
-        {/* Content container - reduced height to make room for account menu */}
+        {/* Content container */}
         <div
           className={`
           md:h-[calc(100%-12rem)] flex-grow md:overflow-y-auto
@@ -96,76 +73,24 @@ export default function Sidebar({ onOpenChange }) {
           </div>
         </div>
 
-        {/* Account menu at the bottom with margin-bottom to push it up from bottom edge */}
+        {/* Contact info */}
         <div
           className={`
-            mt-auto border-t p-4 mb-4 w-full
             ${!isOpen ? "!opacity-0 md:!opacity-100" : "!opacity-100"}
             transition-opacity duration-200
           `}
         >
-          {/* Only show user account info when authenticated */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 py-1">
-              <div className="p-2 flex-shrink-0">
-                <User size={14} className="text-gray-600" />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {user.email}
-                </p>
-              </div>
-            </div>
-          ) : null}
+          <ContactMenu />
+        </div>
 
-          {/* Add logout link when authenticated */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 py-1">
-              <div className="p-2 flex-shrink-0">
-                <LogOut size={14} className="text-gray-600" />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <button
-                  onClick={logout}
-                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
-                  font-medium"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          ) : (
-            // Show login button when not authenticated
-            <div className="flex items-center gap-2 py-1">
-              <div className="p-2 flex-shrink-0">
-                <LogIn size={14} className="text-gray-600" />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <button
-                  onClick={login}
-                  className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
-                  font-medium"
-                >
-                  Login
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Contact info */}
-          <div className="flex items-center gap-2 py-1">
-            <div className=" p-2 flex-shrink-0">
-              <Mail size={14} className="text-gray-600" />
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <a
-                href="mailto:irakligeek@gmail.com"
-                className="text-sm !text-gray-600 truncate block "
-              >
-                Contact
-              </a>
-            </div>
-          </div>
+        {/* User account section */}
+        <div
+          className={`
+            ${!isOpen ? "!opacity-0 md:!opacity-100" : "!opacity-100"}
+            transition-opacity duration-200
+          `}
+        >
+          <UserMenu />
         </div>
       </aside>
 
@@ -173,7 +98,7 @@ export default function Sidebar({ onOpenChange }) {
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm !z-30 md:hidden"
-          onClick={() => setIsOpen(false)}
+          onClick={toggleSidebar}
           aria-hidden="true"
         />
       )}

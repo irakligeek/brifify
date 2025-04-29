@@ -1,76 +1,23 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
 import Questionnaire from "./Questionnaire";
 import ProjectBrief from "./ProjectBrief";
 import { useBrief } from "@/context/BriefContext";
-import { useAuth } from "@/context/auth/AuthContext";
-import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import WizardStateManager from "./WizardStateManager";
+import QuestionProcessor from "./QuestionProcessor";
+import ConversationHistory from "./UI/ConversationHistory";
+import { getInitialQuestions } from "@/lib/wizardUtils";
 
 export default function WizardForm() {
-  const {
-    brief,
-    updateBrief,
-    anonymousUser,
-    isInitializing,
-    fetchRemainingBriefs,
-    saveBrief,
-  } = useBrief();
-  const auth = useAuth();
+  const { brief, updateBrief, isInitializing } = useBrief();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
-
-  // Helper function to get the appropriate user data for API calls
-  const getUserData = () => {
-    if (auth.isAuthenticated && auth.user) {
-      // If authenticated, use the Cognito user data
-      return {
-        userId: auth.user.sub,
-        sub: auth.user.sub,
-        email: auth.user.email,
-        cognito_groups: auth.user["cognito:groups"],
-        email_verified: auth.user.email_verified,
-      };
-    } else {
-      // If not authenticated, use anonymous user ID
-      return { userId: anonymousUser?.id };
-    }
-  };
-
-  const [questions, setQuestions] = useState([
-    {
-      id: "initialQuestion",
-      question: "What is your project about?",
-      placeholder: "Describe your project in a few words",
-    },
-  ]);
-
+  const [questions, setQuestions] = useState(getInitialQuestions());
   const [formData, setFormData] = useState({});
 
-  // Check for and handle the wizard reset flag
-  useEffect(() => {
-    const resetFlag = localStorage.getItem("brifify_reset_wizard");
-    if (resetFlag === "true") {
-      // Reset all wizard state
-      setCurrentStep(0);
-      setThreadId(null);
-      setConversationHistory([]);
-      setFormData({});
-      setQuestions([
-        {
-          id: "initialQuestion",
-          question: "What is your project about?",
-          placeholder: "Describe your project in a few words",
-        },
-      ]);
-
-      // Clear the flag
-      localStorage.removeItem("brifify_reset_wizard");
-    }
-  }, []);
-
+  // Helper function to handle text area auto-resize
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -82,6 +29,7 @@ export default function WizardForm() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  // Auto-resize textareas on step change
   useEffect(() => {
     const textareas = document.querySelectorAll("textarea");
     textareas.forEach((textarea) => {
@@ -90,159 +38,38 @@ export default function WizardForm() {
     });
   }, [currentStep]);
 
-  const nextStep = async () => {
-    const currentQuestion = questions[currentStep];
-    const userAnswer = formData[currentQuestion.id];
+  // Handle the next question from the AI
+  const handleNextQuestion = (message, newThreadId, updatedHistory) => {
+    const newQuestions = [
+      ...questions,
+      {
+        id: `question_${questions.length}`,
+        question: message,
+        placeholder: "Type your answer here...",
+      },
+    ];
+    
+    setThreadId(newThreadId);
+    setQuestions(newQuestions);
+    setCurrentStep(currentStep + 1);
+    setIsLoading(false);
+  };
 
-    if (!userAnswer) return;
+  // Create an instance of QuestionProcessor
+  const questionProcessor = QuestionProcessor({
+    currentQuestion: questions[currentStep],
+    formData,
+    conversationHistory,
+    threadId,
+    updateConversationHistory: setConversationHistory,
+    onNextQuestion: handleNextQuestion,
+    onBriefGenerated: updateBrief,
+    onLoading: setIsLoading,
+  });
 
-    setIsLoading(true);
-
-    try {
-      const newUserMessage = { role: "user", content: userAnswer };
-      const currentQuestionMessage = {
-        role: "assistant",
-        content: currentQuestion.question,
-      };
-      const updatedHistory = [
-        ...conversationHistory,
-        currentQuestionMessage,
-        newUserMessage,
-      ];
-      setConversationHistory(updatedHistory);
-
-      const response = await axios.post(
-        "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/get-questions",
-        {
-          messages: updatedHistory,
-          userThreadId: threadId,
-          ...getUserData(), // Use the helper function to get appropriate user data
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const responseBody = JSON.parse(response.data.body);
-
-      // First check if there's an error in the response
-      if (responseBody.error) {
-        if (responseBody.error === "Brief limit reached") {
-          fetchRemainingBriefs();
-          toast.error(
-            "You've reached the free brief limit. Get more tokens to continue!"
-          );
-        } else {
-          toast.error(responseBody.error);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      const { message, threadId: newThreadId } = responseBody;
-
-      if (!message) {
-        toast.error("Unexpected response format");
-        setIsLoading(false);
-        return;
-      }
-
-      // Check for 'done' more flexibly, ignoring case and punctuation
-      if (
-        message
-          .toLowerCase()
-          .replace(/[.,!?;:]/g, "")
-          .trim() === "done"
-      ) {
-        try {
-          const briefResponse = await axios.post(
-            "https://8dza2tz7cd.execute-api.us-east-1.amazonaws.com/dev/generate-brief",
-            {
-              questionnaire: updatedHistory.reduce((acc, _, index, array) => {
-                if (index % 2 === 0 && index + 1 < array.length) {
-                  acc.push({
-                    question: array[index].content,
-                    answer: array[index + 1].content,
-                  });
-                }
-                return acc;
-              }, []),
-              ...getUserData(), // Use the helper function to get appropriate user data
-            },
-            {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          const briefResponseBody = JSON.parse(briefResponse.data.body);
-
-          if (briefResponseBody.error) {
-            toast.error(briefResponseBody.error);
-            setIsLoading(false);
-            return;
-          }
-
-          const { brief: generatedBrief } = briefResponseBody;
-
-          if (generatedBrief) {
-            updateBrief(generatedBrief);
-
-            // If the user is authenticated, save the brief using the context function
-            if (auth.isAuthenticated && auth.user) {
-              try {
-                const saveResult = await saveBrief(generatedBrief);
-                if (saveResult && saveResult.success) {
-                  toast.success("Brief saved successfully!");
-                } else {
-                  toast.error("Failed to save brief. Please try again.");
-                }
-              } catch (error) {
-                toast.error("Failed to save brief. Please try again.");
-              }
-            }
-
-            // Fetch updated remaining briefs count
-            fetchRemainingBriefs();
-          }
-        } catch (error) {
-          if (error.response?.status === 429) {
-            toast.error(
-              "You've reached the free brief limit. Get more tokens to continue!"
-            );
-          } else {
-            toast.error("Failed to generate brief. Please try again.");
-          }
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // Only add new question if not 'done'
-      setThreadId(newThreadId);
-      setQuestions((prev) => [
-        ...prev,
-        {
-          id: `question_${prev.length}`,
-          question: message,
-          placeholder: "Type your answer here...",
-        },
-      ]);
-      setCurrentStep((prev) => prev + 1);
-    } catch (error) {
-      if (error.response?.status === 429) {
-        toast.error(
-          "You've reached the free brief limit. Get more tokens to continue!"
-        );
-      } else {
-        toast.error("Something went wrong. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  // Handle next step button click
+  const nextStep = () => {
+    questionProcessor.processNextStep();
   };
 
   if (isInitializing) {
@@ -258,10 +85,25 @@ export default function WizardForm() {
 
   return (
     <>
+      {/* State manager component (no UI) */}
+      <WizardStateManager
+        setCurrentStep={setCurrentStep}
+        setThreadId={setThreadId}
+        setConversationHistory={setConversationHistory}
+        setFormData={setFormData}
+        setQuestions={setQuestions}
+        currentStep={currentStep}
+        threadId={threadId}
+        conversationHistory={conversationHistory}
+        formData={formData}
+        questions={questions}
+      />
+
+      {/* Display either the brief or the questionnaire */}
       {brief ? (
         <ProjectBrief initialData={brief} />
       ) : (
-        <div className="flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
           <div className="w-full">
             <Questionnaire
               questions={questions}
@@ -272,6 +114,13 @@ export default function WizardForm() {
               isLoading={isLoading}
             />
           </div>
+          
+          {/* Conversation history display */}
+          <ConversationHistory 
+            questions={questions} 
+            formData={formData}
+            currentStep={currentStep}
+          />
         </div>
       )}
     </>

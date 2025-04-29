@@ -128,6 +128,12 @@ export const AuthProvider = ({ children }) => {
     const logoutUri = import.meta.env.VITE_APP_REDIRECT_URI;
     const cognitoDomain = import.meta.env.VITE_APP_COGNITO_DOMAIN;
     
+    // Clear wizard state for the current user
+    if (user && user.sub) {
+      localStorage.removeItem(`brifify_wizard_state_${user.sub}`);
+      console.log("Cleared wizard state for user:", user.sub);
+    }
+    
     oidcAuth.removeUser();
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   };

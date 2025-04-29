@@ -253,9 +253,37 @@ export default function ProjectBrief({ initialData }) {
         </CardHeader>
         <CardContent className="pt-6 pb-2 text-left">
           <div className="space-y-6">
+            {/* Display Project Title first */}
+            {briefData.project_title && (
+              <div>
+                <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
+                  Project Title
+                </h3>
+                <p className="text-slate-700 text-left">
+                  {briefData.project_title}
+                </p>
+              </div>
+            )}
+            
+            {/* Display Description second */}
+            {briefData.description && (
+              <div>
+                <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
+                  Description
+                </h3>
+                <p className="text-slate-700 text-left">
+                  {briefData.description}
+                </p>
+              </div>
+            )}
+            
+            {/* Map and display the rest of the fields */}
             {Object.entries(briefData).map(([key, value]) => {
+              // Skip project_title and description as they're already displayed above
               // Skip empty arrays, undefined/null values, and metadata
-              if (!value || 
+              if (key === 'project_title' ||
+                  key === 'description' ||
+                  !value || 
                   (Array.isArray(value) && value.length === 0) || 
                   key === 'briefId' || 
                   key === 'createdAt' || 
