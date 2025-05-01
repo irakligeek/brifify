@@ -23,7 +23,7 @@ export default function ConversationHistory({
     <div className={cn("mt-8 mb-4 w-full mx-auto text-left pl-6")}>
       <Separator className="my-4 bg-gray-100" />
       <h3 className="text-sm font-medium mb-3 text-gray-600 uppercase tracking-wide">
-        Brief questions
+        Questions log
       </h3>
       <div className="space-y-3">
         {answeredQuestions.map((question, index) => (
