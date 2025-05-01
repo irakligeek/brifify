@@ -64,9 +64,7 @@ export default function WizardStateManager({
     const loadState = () => {
       const userId = getCurrentUserId(auth, anonymousUser);
       if (!userId) return;
-      
-      console.log("Attempting to load wizard state for user:", userId);
-      
+          
       const savedState = loadWizardState(userId);
       if (savedState) {
         console.log("Restoring wizard state from localStorage");
@@ -79,10 +77,8 @@ export default function WizardStateManager({
         setQuestions(savedState.questions);
         setLastLoadedUserId(userId);
         stateLoaded.current = true;
-        
-        console.log("State restored. Current step:", savedState.currentStep);
+      
       } else {
-        console.log("No valid saved state found for user:", userId);
         // Mark as loaded even if no state was found, to allow saving new state
         stateLoaded.current = true;
       }
@@ -117,8 +113,6 @@ export default function WizardStateManager({
     // Always save state if we have meaningful data, even before completely loaded
     if ((currentStep > 0 || (formData.initialQuestion && formData.initialQuestion.trim().length > 0)) && 
         threadId && questions.length > 0) {
-      
-      console.log("Saving wizard state to localStorage for user:", userId);
       
       const stateToSave = {
         currentStep,
