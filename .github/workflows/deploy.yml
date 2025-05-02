@@ -8,6 +8,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest  # Specifies the operating system for the runner.
+    # Add permissions needed for OIDC token
+    permissions:
+      id-token: write  # Required for requesting the JWT
+      contents: read   # Required for actions/checkout
 
     steps:
     - name: Checkout code
