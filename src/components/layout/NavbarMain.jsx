@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/UI/button";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 import { useState } from "react";

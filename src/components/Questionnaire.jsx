@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/UI/button";
+import { Textarea } from "@/components/UI/textarea";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { TextRotator } from "./UI/TextRotator";
 

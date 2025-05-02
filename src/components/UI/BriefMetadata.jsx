@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/UI/button";
+import { Card } from "@/components/UI/card";
 import { Coins, Loader2, PlusCircle, Check } from "lucide-react";
 import { useBrief } from "@/context/BriefContext";
 import { useAuth } from "@/context/auth/AuthContext";
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/UI/dialog";
 
 export default function BriefMetadata() {
   const { remainingBriefs, generateNewBrief, fetchRemainingBriefs } = useBrief();
