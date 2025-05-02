@@ -13,7 +13,7 @@ Welcome to the **Technical Brief Generator**! This app is designed to help non-t
 3. **Download or Share**: Once you're happy with your brief, you can download it or share it with your tech team.
 
 ## Tech Stack:
-- **Frontend**: React, Vite
+- **Frontend**: React, Vite, Tailwind
 - **Backend**: AWS Serverless Stack (Lambda, API Gateway)
 - **Authentication**: AWS Cognito
 - **Data Storage**: DynamoDB
