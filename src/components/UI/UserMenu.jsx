@@ -1,32 +1,20 @@
 import { useState } from "react";
 import { 
   UserCircle, 
-  LogOut, 
-  LogIn, 
+  LogOut,
+  LogIn,
   ChevronDown,
-  Settings,
-  Moon,
-  Sun,
-  Bell 
 } from "lucide-react";
 import { useAuth } from "../../context/auth/AuthContext";
+import Login from "./Login";
 
 export default function UserMenu() {
   const [showUserPanel, setShowUserPanel] = useState(false);
-  const { user, isAuthenticated, logout, login } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   
-  // Sample state for theme - in a real app, this would be managed in a theme context
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
   // Toggle the user panel visibility
   const toggleUserPanel = () => {
     setShowUserPanel(!showUserPanel);
-  };
-
-  // Toggle theme between light and dark
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    // Your theme switching logic would go here
   };
 
   return (
@@ -63,20 +51,6 @@ export default function UserMenu() {
                   </div>
                 </div>
                 
-                {/* Menu options */}
-                {/* <div className="py-1">
-                  <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-                    <Settings size={14} className="text-gray-500" />
-                    <span>Settings</span>
-                  </button>
-                
-                  
-                  <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-                    <Bell size={14} className="text-gray-500" />
-                    <span>Notifications</span>
-                  </button>
-                </div> */}
-                
                 {/* Logout option */}
                 <div className="border-t border-gray-100">
                   <button
@@ -92,19 +66,13 @@ export default function UserMenu() {
           )}
         </>
       ) : (
-        // Show login button when not authenticated
-        <div className="flex items-center gap-2 py-1">
+        // Show login component when not authenticated
+        <div className="flex items-center py-1 pl-2">
           <div className="p-2 flex-shrink-0">
             <LogIn size={14} className="text-gray-600" />
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <button
-              onClick={login}
-              className="text-sm text-gray-600 hover:text-gray-900 truncate block cursor-pointer
-              font-medium"
-            >
-              Login
-            </button>
+            <Login />
           </div>
         </div>
       )}

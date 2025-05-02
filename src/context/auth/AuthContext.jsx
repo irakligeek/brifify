@@ -119,7 +119,23 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in function
   const login = () => {
-    oidcAuth.signinRedirect();
+    console.log('Login function called in AuthContext');
+    console.log('Environment:', import.meta.env.MODE);
+    console.log('Redirect URI:', import.meta.env.VITE_APP_REDIRECT_URI);
+    console.log('Auth config:', {
+      authority: import.meta.env.VITE_APP_AUTH_AUTHORITY,
+      clientId: import.meta.env.VITE_APP_CLIENT_ID,
+      cognitoDomain: import.meta.env.VITE_APP_COGNITO_DOMAIN,
+    });
+    
+    try {
+      oidcAuth.signinRedirect()
+        .catch(error => {
+          console.error('Signin redirect error:', error);
+        });
+    } catch (error) {
+      console.error('Exception during login attempt:', error);
+    }
   };
 
   // Sign out function
@@ -131,7 +147,6 @@ export const AuthProvider = ({ children }) => {
     // Clear wizard state for the current user
     if (user && user.sub) {
       localStorage.removeItem(`brifify_wizard_state_${user.sub}`);
-      console.log("Cleared wizard state for user:", user.sub);
     }
     
     oidcAuth.removeUser();

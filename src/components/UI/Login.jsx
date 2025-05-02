@@ -1,5 +1,5 @@
 import { useAuth } from "../../context/auth/AuthContext";
-import { Loader2, User, LogOut } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "./button";
 
 export default function Login() {
@@ -43,12 +43,20 @@ export default function Login() {
     );
   }
 
+  const handleLogin = () => {
+    console.log('Login button clicked');
+    console.log('Redirect URI:', import.meta.env.VITE_APP_REDIRECT_URI);
+    console.log('Auth Authority:', import.meta.env.VITE_APP_AUTH_AUTHORITY);
+    console.log('Client ID:', import.meta.env.VITE_APP_CLIENT_ID);
+    auth.login();
+  };
+
   return (
     <Button
-      onClick={() => auth.login()}
+      onClick={handleLogin}
       variant="ghost"
       size="sm"
-      className="text-gray-700 hover:text-gray-900"
+      className="text-gray-700 hover:text-gray-900 pl-1"
     >
       Login
     </Button>
