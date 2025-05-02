@@ -1,13 +1,24 @@
-# React + Vite
+# AI-Powered Brief Creation App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Welcome to the **Technical Brief Generator**! This app is designed to help non-technical users create clear and concise technical briefs with ease. Powered by AI, the app simplifies complex concepts and presents them in a way that's easy to understand.
 
-Currently, two official plugins are available:
+## Key Features:
+- **Easy-to-Use Wizard**: Step-by-step guide to generate your brief.
+- **Contextual Questions**: The app asks relevant questions to tailor the brief to your current project.
+- **AI-Powered**: Quickly converts your project ideas into easy-to-understand project briefs for developers and technical audiences.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## How It Works:
+1. **Answer Simple Questions**: The wizard will guide you through a set of easy-to-understand questions.
+2. **AI Magic**: Our AI will take your responses and generate a well-structured technical brief.
+3. **Download or Share**: Once you're happy with your brief, you can download it or share it with your tech team.
 
-## Expanding the ESLint configuration
+## Tech Stack:
+- **Frontend**: React, Vite
+- **Backend**: AWS Serverless Stack (Lambda, API Gateway)
+- **Authentication**: AWS Cognito
+- **Data Storage**: DynamoDB
+- **Hosting**: S3 + CloudFront for static site hosting
+- **Payment Integration**: Stripe
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-# brifify
+## Who It's For:
+This app is perfect for anyone needing to create a technical brief for developers swithout a technical background. Whether you're a project manager, marketer, or executive, this tool might help you communicate technical concepts clearly and effectively.

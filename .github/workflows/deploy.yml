@@ -1,0 +1,35 @@
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - main  # This triggers the action when changes are pushed to the 'main' branch.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Specifies the operating system for the runner.
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2  # Checks out your code repository.
+
+    - name: Set up AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # Role ARN from the secret.
+        aws-region: ${{ secrets.AWS_REGION }}  # AWS region from the secret.
+
+    - name: Build project (if necessary)
+      run: |
+        # Replace this with your build command if needed.
+        # For example, for a Node.js app:
+        npm install
+        npm run build
+
+    - name: Sync files to S3
+      run: |
+        aws s3 sync ./dist/ s3://app.brifify.com --delete  # Sync everything in the 'dist' folder to S3 bucket.
+
+    - name: Invalidate CloudFront cache
+      run: |
+        aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"  # Invalidate all cache using secret.
