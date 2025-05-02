@@ -3,6 +3,24 @@ import { Document, Paragraph, HeadingLevel } from "docx";
 import { toast } from "sonner";
 import axios from "axios";
 
+// Define metadata fields that should not be displayed or included in exports
+const METADATA_FIELDS = [
+  'briefId', 
+  'createdAt', 
+  'updatedAt',
+  'recordType', 
+  'timestamp',
+  'userId',
+  'title'
+];
+
+// Define required fields that should always be prioritized in exports
+const REQUIRED_FIELDS = [
+  'project_title',
+  'description',
+  'features'
+];
+
 const formatFieldName = (key) => {
   return key
     .split("_")
@@ -10,30 +28,61 @@ const formatFieldName = (key) => {
     .join(" ");
 };
 
+// Helper function to organize fields for structured display
+const organizeFields = (briefData) => {
+  const result = {
+    required: {},
+    other: {}
+  };
+  
+  // First pass: collect required fields
+  REQUIRED_FIELDS.forEach(field => {
+    if (
+      briefData[field] !== undefined && 
+      briefData[field] !== null && 
+      !(Array.isArray(briefData[field]) && briefData[field].length === 0)
+    ) {
+      result.required[field] = briefData[field];
+    }
+  });
+  
+  // Second pass: collect other fields
+  Object.entries(briefData).forEach(([key, value]) => {
+    // Skip metadata fields, required fields (already handled), and empty values
+    if (
+      METADATA_FIELDS.includes(key) ||
+      REQUIRED_FIELDS.includes(key) ||
+      value === null || 
+      value === undefined ||
+      (Array.isArray(value) && value.length === 0) ||
+      (typeof value === 'object' && !Array.isArray(value))
+    ) {
+      return;
+    }
+    
+    result.other[key] = value;
+  });
+  
+  return result;
+};
+
 export const downloadBriefAsPDF = (briefData) => {
   const doc = new jsPDF();
   let yPos = 20;
 
-  // Title
+  // Title - always use project_title
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text(briefData.project_title, 20, yPos);
+  doc.text(briefData.project_title || "Untitled Project", 20, yPos);
   yPos += 20;
 
-  // Iterate through all fields
-  Object.entries(briefData).forEach(([key, value]) => {
-    // Skip project_title, technical fields and empty values
-    if (
-      key === "project_title" ||
-      key === "briefId" ||
-      key === "createdAt" ||
-      key === "updatedAt" ||
-      key === "recordType" ||
-      key === "userId" ||
-      key === "title" ||
-      !value ||
-      (Array.isArray(value) && value.length === 0)
-    ) {
+  // Organize fields for structured display
+  const { required, other } = organizeFields(briefData);
+  
+  // First display required fields
+  Object.entries(required).forEach(([key, value]) => {
+    // Skip project_title as it's already displayed as the document title
+    if (key === "project_title") {
       return;
     }
 
@@ -48,12 +97,40 @@ export const downloadBriefAsPDF = (briefData) => {
     if (Array.isArray(value)) {
       value.forEach((item) => {
         doc.text("•", 20, yPos);
-        doc.text(item, 25, yPos);
+        const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+        doc.text(itemText, 25, yPos);
         yPos += 7;
       });
       yPos += 3;
     } else {
-      const textLines = doc.splitTextToSize(value.toString(), 170);
+      const textLines = doc.splitTextToSize(String(value), 170);
+      doc.text(textLines, 20, yPos);
+      yPos += textLines.length * 7 + 3;
+    }
+
+    yPos += 7; // Add space between sections
+  });
+
+  // Then display other fields
+  Object.entries(other).forEach(([key, value]) => {
+    doc.setFontSize(14);
+    doc.setFont(undefined, "bold");
+    doc.text(formatFieldName(key) + ":", 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, "normal");
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        doc.text("•", 20, yPos);
+        const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+        doc.text(itemText, 25, yPos);
+        yPos += 7;
+      });
+      yPos += 3;
+    } else {
+      const textLines = doc.splitTextToSize(String(value), 170);
       doc.text(textLines, 20, yPos);
       yPos += textLines.length * 7 + 3;
     }
@@ -73,14 +150,14 @@ export const downloadBriefAsPDF = (briefData) => {
   doc.setFont(undefined, "italic");
   doc.text(`Generated on ${formattedDate}`, 20, doc.internal.pageSize.height - 10);
 
-  doc.save(`${briefData.project_title.replace(/\s+/g, "_")}_brief.pdf`);
+  doc.save(`${(briefData.project_title || "project_brief").replace(/\s+/g, "_")}_brief.pdf`);
   toast.success("PDF downloaded successfully");
 };
 
 export const downloadBriefAsDOCX = async (briefData) => {
   const children = [
     new Paragraph({
-      text: briefData.project_title,
+      text: briefData.project_title || "Untitled Project",
       heading: HeadingLevel.HEADING_1,
       bold: true,
       size: 32,
@@ -88,20 +165,13 @@ export const downloadBriefAsDOCX = async (briefData) => {
     new Paragraph({}), // Add spacing
   ];
 
-  // Iterate through all fields
-  Object.entries(briefData).forEach(([key, value]) => {
-    // Skip project_title, technical fields and empty values
-    if (
-      key === "project_title" ||
-      key === "briefId" ||
-      key === "createdAt" ||
-      key === "updatedAt" ||
-      key === "recordType" ||
-      key === "userId" ||
-      key === "title" ||
-      !value ||
-      (Array.isArray(value) && value.length === 0)
-    ) {
+  // Organize fields for structured display
+  const { required, other } = organizeFields(briefData);
+  
+  // First display required fields
+  Object.entries(required).forEach(([key, value]) => {
+    // Skip project_title as it's already displayed as the document title
+    if (key === "project_title") {
       return;
     }
 
@@ -116,20 +186,54 @@ export const downloadBriefAsDOCX = async (briefData) => {
 
     if (Array.isArray(value)) {
       children.push(
-        ...value.map(
-          (item) =>
-            new Paragraph({
-              text: item,
-              bullet: {
-                level: 0,
-              },
-            })
-        )
+        ...value.map(item => {
+          const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+          return new Paragraph({
+            text: itemText,
+            bullet: {
+              level: 0,
+            },
+          });
+        })
       );
     } else {
       children.push(
         new Paragraph({
-          text: value.toString(),
+          text: String(value),
+        })
+      );
+    }
+
+    children.push(new Paragraph({})); // Add spacing between sections
+  });
+
+  // Then display other fields
+  Object.entries(other).forEach(([key, value]) => {
+    children.push(
+      new Paragraph({
+        text: formatFieldName(key),
+        heading: HeadingLevel.HEADING_2,
+        bold: true,
+        size: 28,
+      })
+    );
+
+    if (Array.isArray(value)) {
+      children.push(
+        ...value.map(item => {
+          const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+          return new Paragraph({
+            text: itemText,
+            bullet: {
+              level: 0,
+            },
+          });
+        })
+      );
+    } else {
+      children.push(
+        new Paragraph({
+          text: String(value),
         })
       );
     }
@@ -166,31 +270,43 @@ export const downloadBriefAsDOCX = async (briefData) => {
 
 export const copyBriefToClipboard = async (briefData) => {
   try {
-    let formattedText = `${briefData.project_title}\r\n\r\n`;
+    let formattedText = `${briefData.project_title || "Untitled Project"}\r\n\r\n`;
 
-    // Iterate through all fields
-    Object.entries(briefData).forEach(([key, value]) => {
-      // Skip project_title, technical fields and empty values
-      if (
-        key === "project_title" ||
-        key === "briefId" ||
-        key === "createdAt" ||
-        key === "updatedAt" ||
-        key === "recordType" ||
-        key === "userId" ||
-        key === "title" ||
-        !value ||
-        (Array.isArray(value) && value.length === 0)
-      ) {
+    // Organize fields for structured display
+    const { required, other } = organizeFields(briefData);
+    
+    // First add required fields to the clipboard text
+    Object.entries(required).forEach(([key, value]) => {
+      // Skip project_title as it's already added as the title
+      if (key === "project_title") {
         return;
       }
 
       formattedText += `${formatFieldName(key)}:\r\n`;
 
       if (Array.isArray(value)) {
-        formattedText += value.map((item) => `• ${item}`).join("\r\n");
+        formattedText += value.map(item => {
+          const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+          return `• ${itemText}`;
+        }).join("\r\n");
       } else {
-        formattedText += value.toString();
+        formattedText += String(value);
+      }
+
+      formattedText += "\r\n\r\n";
+    });
+
+    // Then add other fields to the clipboard text
+    Object.entries(other).forEach(([key, value]) => {
+      formattedText += `${formatFieldName(key)}:\r\n`;
+
+      if (Array.isArray(value)) {
+        formattedText += value.map(item => {
+          const itemText = typeof item === 'object' ? JSON.stringify(item) : String(item);
+          return `• ${itemText}`;
+        }).join("\r\n");
+      } else {
+        formattedText += String(value);
       }
 
       formattedText += "\r\n\r\n";
@@ -304,3 +420,6 @@ export const editBrief = async ({ briefData, user, isAuthenticated, onContinue }
 export const canEditBrief = (isAuthenticated) => {
   return isAuthenticated;
 };
+
+// Export constants for use in other components
+export { METADATA_FIELDS, REQUIRED_FIELDS };

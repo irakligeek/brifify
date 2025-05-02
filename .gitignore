@@ -40,7 +40,11 @@ logs
 *.sln
 *.sw?
 
-# Lambda function dependencies and builds
+# Lambda folders - exclude completely
+/lambda/
+lambda/
+
+# Lambda function dependencies and builds (if not excluding the entire lambda folder)
 lambda/**/node_modules
 lambda/**/dist
 lambda/**/.env

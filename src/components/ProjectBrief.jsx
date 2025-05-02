@@ -43,9 +43,19 @@ import {
   downloadBriefAsDOCX,
   copyBriefToClipboard,
   shareBrief,
+  METADATA_FIELDS,
+  REQUIRED_FIELDS
 } from "@/lib/document/briefUtils";
 import { useBrief } from "@/context/BriefContext";
 import { useAuth } from "@/context/auth/AuthContext";
+
+// Helper function to format field names for display
+const formatFieldName = (key) => {
+  return key
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 export default function ProjectBrief({ initialData }) {
   const { brief, updateBrief, generateNewBrief, saveBrief, deleteBrief } = useBrief();
@@ -53,13 +63,14 @@ export default function ProjectBrief({ initialData }) {
   
   // Process the initial data structure to handle both flat and nested formats
   const processInitialData = (data) => {
+    if (!data) return {};
+    
     // If briefData exists and contains project data, use that as the primary source
     if (data?.briefData) {
       return {
         ...data.briefData,
         // Include top-level metadata
         briefId: data.briefId || data.briefData.briefId,
-        // title: data.title || data.briefData.project_title,
         createdAt: data.createdAt || data.briefData.createdAt || data.updatedAt,
       };
     }
@@ -147,10 +158,7 @@ export default function ProjectBrief({ initialData }) {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${briefData.project_title.replace(
-        /\s+/g,
-        "_"
-      )}_brief.docx`;
+      link.download = `${briefData.project_title?.replace(/\s+/g, "_") || "project"}_brief.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -219,9 +227,101 @@ export default function ProjectBrief({ initialData }) {
     setOpen(true);
   };
 
-  if (!briefData) {
+  // Function to check if field should be displayed
+  const shouldDisplayField = (key, value) => {
+    // Don't display metadata fields, null values or empty arrays
+    if (
+      METADATA_FIELDS.includes(key) ||
+      value === null || 
+      value === undefined || 
+      (Array.isArray(value) && value.length === 0) ||
+      typeof value === 'object' && !Array.isArray(value)
+    ) {
+      return false;
+    }
+    return true;
+  };
+
+  // Organize fields for display - required fields first, then others
+  const organizeFieldsForDisplay = (data) => {
+    const result = {
+      required: {},
+      other: {}
+    };
+    
+    // First pass: collect required fields
+    REQUIRED_FIELDS.forEach(field => {
+      if (data[field] !== undefined && shouldDisplayField(field, data[field])) {
+        result.required[field] = data[field];
+      }
+    });
+    
+    // Second pass: collect other fields
+    Object.entries(data).forEach(([key, value]) => {
+      if (!REQUIRED_FIELDS.includes(key) && shouldDisplayField(key, value)) {
+        result.other[key] = value;
+      }
+    });
+    
+    return result;
+  };
+
+  // Separate required and other fields for rendering
+  const { required: requiredFields, other: otherFields } = organizeFieldsForDisplay(briefData);
+
+  if (!briefData || Object.keys(briefData).length === 0) {
     return <div className="text-left p-4">No project brief data provided.</div>;
   }
+
+  // Format a single date value properly
+  const formatDateValue = (dateValue) => {
+    if (!dateValue) return '';
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return dateValue;
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      return dateValue;
+    }
+  };
+
+  // Render a single field based on its type
+  const renderField = (key, value) => {
+    // Format date fields
+    let displayValue = value;
+    if (key === 'createdAt' || key === 'timestamp') {
+      displayValue = formatDateValue(value);
+    }
+
+    return (
+      <div key={key} className="mb-6">
+        <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
+          {formatFieldName(key)}
+        </h3>
+        {Array.isArray(displayValue) ? (
+          <ul className="list-disc pl-5 space-y-1 text-left">
+            {displayValue.map((item, index) => {
+              const itemStr = typeof item === 'object' ? JSON.stringify(item) : String(item);
+              return (
+                <li key={index} className="text-slate-700 text-left">
+                  {itemStr}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-slate-700 text-left">
+            {String(displayValue)}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-3xl mx-auto p-4 text-left space-y-4">
@@ -234,111 +334,24 @@ export default function ProjectBrief({ initialData }) {
                 {briefData.project_title || "Untitled Project"}
               </CardTitle>
             </div>
-            <div className="flex flex-col itmes-start
+            <div className="flex flex-col items-start
             sm:!items-end ">
-              <CardDescription className="text-sm font-medium text-slate-500 text-left">
-                Platform: {briefData.platform || "Not specified"}
-              </CardDescription>
               {briefData.createdAt && (
                 <CardDescription className="text-sm font-medium text-slate-500 text-left">
-                  Created on: {(() => {
-                    const date = new Date(briefData.createdAt);
-                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                    return date.toLocaleDateString('en-US', options);
-                  })()}
+                  Created on: {formatDateValue(briefData.createdAt)}
                 </CardDescription>
               )}
+              {/* Any additional header metadata would be added dynamically */}
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6 pb-2 text-left">
           <div className="space-y-6">
-            {/* Display Project Title first */}
-            {briefData.project_title && (
-              <div>
-                <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
-                  Project Title
-                </h3>
-                <p className="text-slate-700 text-left">
-                  {briefData.project_title}
-                </p>
-              </div>
-            )}
+            {/* Required fields section */}
+            {Object.entries(requiredFields).map(([key, value]) => renderField(key, value))}
             
-            {/* Display Description second */}
-            {briefData.description && (
-              <div>
-                <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
-                  Description
-                </h3>
-                <p className="text-slate-700 text-left">
-                  {briefData.description}
-                </p>
-              </div>
-            )}
-            
-            {/* Map and display the rest of the fields */}
-            {Object.entries(briefData).map(([key, value]) => {
-              // Skip project_title and description as they're already displayed above
-              // Skip empty arrays, undefined/null values, and metadata
-              if (key === 'project_title' ||
-                  key === 'description' ||
-                  !value || 
-                  (Array.isArray(value) && value.length === 0) || 
-                  key === 'briefId' || 
-                  key === 'createdAt' || 
-                  key === 'updatedAt' ||
-                  key === 'recordType' || 
-                  key === 'timestamp' ||
-                  key === 'userId' ||
-                  key === 'title') {
-                return null;
-              }
-              
-              // Format the field name for display
-              let fieldName = key
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-
-              // Format date fields
-              let displayValue = value;
-              if ((key === 'createdAt' || key === 'timestamp') && value) {
-                const date = new Date(value);
-                const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                displayValue = date.toLocaleDateString('en-US', options);
-              }
-
-              // Ensure we're not trying to render an object directly
-              if (typeof displayValue === 'object' && displayValue !== null && !Array.isArray(displayValue)) {
-                return null; // Skip objects that aren't arrays
-              }
-
-              return (
-                <div key={key}>
-                  <h3 className="text-sm font-medium text-slate-500 mb-2 text-left">
-                    {fieldName}
-                  </h3>
-                  {Array.isArray(displayValue) ? (
-                    <ul className="list-disc pl-5 space-y-1 text-left">
-                      {displayValue.map((item, index) => {
-                        // Ensure we're not rendering objects in the list
-                        const itemStr = typeof item === 'object' ? JSON.stringify(item) : String(item);
-                        return (
-                          <li key={index} className="text-slate-700 text-left">
-                            {itemStr}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-slate-700 text-left">
-                      {String(displayValue)}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+            {/* Other fields section */}
+            {Object.entries(otherFields).map(([key, value]) => renderField(key, value))}
           </div>
         </CardContent>
         <CardFooter className="flex border-t pt-4 mt-4 text-left gap-4 items-start justify-between flex-col sm:!flex-row">
@@ -478,30 +491,51 @@ export default function ProjectBrief({ initialData }) {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    {Object.entries(editData).map(([key, value]) => {
-                      // Skip certain technical fields that shouldn't be edited
-                      if (key === 'briefId' || 
-                          key === 'createdAt' || 
-                          key === 'updatedAt' ||
-                          key === 'recordType' ||
-                          key === 'userId' ||
-                          key === 'title') return null;
+                    {/* Always show required fields first */}
+                    {REQUIRED_FIELDS.map(key => {
+                      if (!editData.hasOwnProperty(key)) return null;
                       
-                      // Skip non-editable objects
-                      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                        return null;
-                      }
-                      
-                      // Format the field name for display
-                      const fieldName = key
-                        .split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                        .join(' ');
-
+                      const value = editData[key];
                       return (
                         <div key={key} className="grid gap-2">
                           <Label htmlFor={key} className="text-left">
-                            {fieldName} {Array.isArray(value) && '(one per line)'}
+                            {formatFieldName(key)} {Array.isArray(value) && '(one per line)'}
+                          </Label>
+                          {Array.isArray(value) ? (
+                            <Textarea
+                              id={key}
+                              value={value.join('\n')}
+                              onChange={(e) => handleEditChange(key, e.target.value)}
+                              rows={3}
+                              className="text-left"
+                            />
+                          ) : (
+                            <Input
+                              id={key}
+                              value={value || ''}
+                              onChange={(e) => handleEditChange(key, e.target.value)}
+                              className="text-left"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Then show all other fields */}
+                    {Object.entries(editData).map(([key, value]) => {
+                      // Skip required fields (already shown) and metadata fields
+                      if (
+                        REQUIRED_FIELDS.includes(key) || 
+                        METADATA_FIELDS.includes(key) || 
+                        typeof value === 'object' && !Array.isArray(value)
+                      ) {
+                        return null;
+                      }
+                      
+                      return (
+                        <div key={key} className="grid gap-2">
+                          <Label htmlFor={key} className="text-left">
+                            {formatFieldName(key)} {Array.isArray(value) && '(one per line)'}
                           </Label>
                           {Array.isArray(value) ? (
                             <Textarea
