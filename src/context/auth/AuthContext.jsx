@@ -119,15 +119,6 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in function
   const login = () => {
-    console.log('Login function called in AuthContext');
-    console.log('Environment:', import.meta.env.MODE);
-    console.log('Redirect URI:', import.meta.env.VITE_APP_REDIRECT_URI);
-    console.log('Auth config:', {
-      authority: import.meta.env.VITE_APP_AUTH_AUTHORITY,
-      clientId: import.meta.env.VITE_APP_CLIENT_ID,
-      cognitoDomain: import.meta.env.VITE_APP_COGNITO_DOMAIN,
-    });
-    
     try {
       oidcAuth.signinRedirect()
         .catch(error => {

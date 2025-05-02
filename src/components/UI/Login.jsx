@@ -44,10 +44,6 @@ export default function Login() {
   }
 
   const handleLogin = () => {
-    console.log('Login button clicked');
-    console.log('Redirect URI:', import.meta.env.VITE_APP_REDIRECT_URI);
-    console.log('Auth Authority:', import.meta.env.VITE_APP_AUTH_AUTHORITY);
-    console.log('Client ID:', import.meta.env.VITE_APP_CLIENT_ID);
     auth.login();
   };
 
