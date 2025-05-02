@@ -23,7 +23,9 @@ export default function ContactMenu() {
         </div>
         <div className="flex-1 min-w-0 text-left">
           <a
-            href="mailto:irakligeek@gmail.com"
+            href="https://x.com/irakligeek"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-sm !text-gray-600 truncate block"
           >
             Suggest a feature
